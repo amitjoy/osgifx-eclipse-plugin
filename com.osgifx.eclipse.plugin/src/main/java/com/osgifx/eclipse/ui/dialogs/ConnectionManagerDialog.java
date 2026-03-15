@@ -148,7 +148,6 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     @Override
     public void create() {
         super.create();
-        resourceManager = new LocalResourceManager(JFaceResources.getResources(), getShell());
         initializeFonts();
         initializeColors();
         getShell().setText("OSGi.fx Connection Manager");
@@ -200,6 +199,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     @Override
     protected Control createDialogArea(final Composite parent) {
         final var container = (Composite) super.createDialogArea(parent);
+        resourceManager = new LocalResourceManager(JFaceResources.getResources(), getShell());
 
         final var mainComposite = new Composite(container, SWT.NONE);
         mainComposite.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
@@ -306,13 +306,21 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
         // SOCKET Tab
         socketTab = new CTabItem(tabFolder, SWT.NONE);
-        socketTab.setText("  Socket  ");
+        socketTab.setText("Socket");
+        final var socketDescriptor = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
+                "icons/socket_connection.png");
+        socketTab.setImage(resourceManager.createImage(socketDescriptor));
+
         final var socketComposite = createSocketTabContent(tabFolder);
         socketTab.setControl(socketComposite);
 
         // MQTT Tab
         mqttTab = new CTabItem(tabFolder, SWT.NONE);
-        mqttTab.setText("  MQTT  ");
+        mqttTab.setText("MQTT");
+        final var mqttDescriptor = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
+                "icons/mqtt_connection.png");
+        mqttTab.setImage(resourceManager.createImage(mqttDescriptor));
+
         final var mqttComposite = createMqttTabContent(tabFolder);
         mqttTab.setControl(mqttComposite);
 
