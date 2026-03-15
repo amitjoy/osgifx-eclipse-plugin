@@ -28,6 +28,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -144,7 +145,12 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     // Validation
     private final Map<Control, ControlDecoration> decorations = new HashMap<>();
     private Button                                connectButton;
+    private Button                                saveButton;
     private ResourceManager                       resourceManager;
+    private boolean                               isDirty;
+    private boolean                               ignoreModifyListeners;
+    private boolean                               ignoreSelectionChange;
+    private ConnectionProfile                     snapshotProfile;
 
     // Fonts and colors
     private Font  headerFont;
@@ -304,9 +310,13 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         createFormLabel(nameComposite, "Profile Name:");
         nameField = createFormText(nameComposite, "Enter profile name...");
         nameField.addModifyListener(e -> {
+            if (ignoreModifyListeners) {
+                return;
+            }
             if (selectedProfile != null) {
                 selectedProfile.name = nameField.getText();
-                profileList.refresh(selectedProfile);
+                markDirty();
+                profileList.update(selectedProfile, null);
             }
         });
         addValidation(nameField, "Profile name is required");
@@ -346,21 +356,51 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         tabFolder.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(final SelectionEvent e) {
+                if (ignoreModifyListeners) {
+                    return;
+                }
                 if (selectedProfile != null) {
-                    final String type = tabFolder.getSelection() == socketTab ? "SOCKET" : "MQTT";
-                    // Only update and refresh if type actually changed and it's a new profile
-                    if (!type.equals(selectedProfile.type) && selectedProfile == newlyCreatedProfile) {
-                        selectedProfile.type = type;
-                        profileList.refresh(selectedProfile);
+                    final String  type  = tabFolder.getSelection() == socketTab ? "SOCKET" : "MQTT";
+                    final boolean isNew = selectedProfile == newlyCreatedProfile;
+                    // Only allow tab switching for newly created profiles
+                    if (!type.equals(selectedProfile.type)) {
+                        if (isNew) {
+                            selectedProfile.type = type;
+                            markDirty();
+                        } else {
+                            // Reset to previous tab if it's an existing profile
+                            ignoreModifyListeners = true;
+                            tabFolder.setSelection("SOCKET".equals(selectedProfile.type) ? socketTab : mqttTab);
+                            ignoreModifyListeners = false;
+                        }
                     }
                 }
                 validateFields();
             }
         });
 
+        // Action Buttons Composite (Save & Connect side-by-side)
+        final Composite actionButtonsComposite = new Composite(rightPanel, SWT.NONE);
+        actionButtonsComposite
+                .setLayoutData(GridDataFactory.fillDefaults().grab(true, false).indent(0, SPACING).create());
+        actionButtonsComposite.setLayout(GridLayoutFactory.fillDefaults().numColumns(2).equalWidth(true).create());
+
+        // Save Button
+        saveButton = new Button(actionButtonsComposite, SWT.PUSH);
+        saveButton.setText("  \u2714  Save  ");
+        saveButton.setFont(boldFont);
+        saveButton.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
+        saveButton.setEnabled(false); // Disabled by default until dirty
+        saveButton.addListener(SWT.Selection, e -> {
+            saveCurrentProfile();
+            // Flash a quick UI feedback (optional but good UX)
+            statusLabel.setForeground(successColor);
+            statusLabel.setText("Profile Saved");
+        });
+
         // Connect button
-        connectButton = createConnectButton(rightPanel);
-        connectButton.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).indent(0, SPACING).create());
+        connectButton = createConnectButton(actionButtonsComposite);
+        connectButton.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
         getShell().setDefaultButton(connectButton);
     }
@@ -394,6 +434,10 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         createFormLabel(composite, "Password:");
         passwordField = createFormPassword(composite);
 
+        final List<Control> socketControls = List.of(hostField, portSpinner, timeoutSpinner, passwordField);
+        socketControls.forEach(c -> c.addListener(SWT.Modify, e -> markDirty()));
+        socketControls.forEach(c -> c.addListener(SWT.Selection, e -> markDirty()));
+
         createFormLabel(composite, "Truststore Path:");
         final Composite truststoreComposite = new Composite(composite, SWT.NONE);
         truststoreComposite.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
@@ -409,6 +453,9 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
         createFormLabel(composite, "Truststore Password:");
         truststorePasswordField = createFormPassword(composite);
+
+        truststorePathField.addListener(SWT.Modify, e -> markDirty());
+        truststorePasswordField.addListener(SWT.Modify, e -> markDirty());
 
         scrolled.setContent(composite);
         scrolled.addControlListener(new ControlAdapter() {
@@ -488,6 +535,12 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
         createFormLabel(composite, "Scope:");
         scopeField = createFormText(composite, "");
+
+        final List<Control> mqttControls = List.of(serverField, mqttPortSpinner, mqttTimeoutSpinner, clientIdField,
+                usernameField, mqttPasswordField, pubTopicField, subTopicField, lwtTopicField, authServerUrlField,
+                oauthClientIdField, clientSecretField, audienceField, scopeField);
+        mqttControls.forEach(c -> c.addListener(SWT.Modify, e -> markDirty()));
+        mqttControls.forEach(c -> c.addListener(SWT.Selection, e -> markDirty()));
 
         scrolled.setContent(composite);
         scrolled.addControlListener(new ControlAdapter() {
@@ -570,9 +623,6 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         duplicateItem.setEnabled(isSelection);
         removeItem.setEnabled(isSelection);
 
-        // Only allow tab switching for newly created profiles
-        final boolean isNew = selectedProfile != null && selectedProfile == newlyCreatedProfile;
-        tabFolder.setEnabled(isNew);
         if (!isSelection) {
             decorations.values().forEach(ControlDecoration::hide);
             if (connectButton != null && !connectButton.isDisposed()) {
@@ -628,17 +678,26 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         final Button button = new Button(parent, SWT.PUSH);
         button.setText("  \u25B6  Connect  ");
         button.setFont(boldFont);
-        button.addListener(SWT.Selection, e -> connect());
+        button.addListener(SWT.Selection, e -> {
+            if (handleDirtyState()) {
+                connect();
+            }
+        });
         return button;
     }
 
     private void addProfile() {
+        if (!handleDirtyState()) {
+            return;
+        }
         final ConnectionProfile profile = new ConnectionProfile("New Connection", "SOCKET");
         newlyCreatedProfile = profile;
         profiles.add(profile);
-        profileStore.add(profile);
         profileList.refresh();
         profileList.setSelection(new StructuredSelection(profile));
+        isDirty         = true;
+        snapshotProfile = null; // Forces dirty because there is no snapshot yet
+        profileList.refresh(profile);
         updatePanelState();
         nameField.setFocus();
         nameField.selectAll();
@@ -648,6 +707,12 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         if (selectedProfile == null) {
             return;
         }
+        final boolean confirmed = MessageDialog.openConfirm(getShell(), "Remove Profile",
+                "Are you sure you want to remove the profile '" + selectedProfile.name + "'?");
+        if (!confirmed) {
+            return;
+        }
+        isDirty = false; // Prevent prompt when selection changes during removal
         profiles.remove(selectedProfile);
         profileStore.remove(selectedProfile.id);
         profileList.refresh();
@@ -661,14 +726,26 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private void duplicateProfile() {
-        if (selectedProfile == null) {
+        if (selectedProfile == null || !handleDirtyState()) {
             return;
         }
-        profileStore.duplicate(selectedProfile.id);
-        profiles = profileStore.loadAll();
-        profileList.setInput(profiles);
+        final ConnectionProfile copy = cloneProfile(selectedProfile);
+        copy.id            = UUID.randomUUID().toString();
+        copy.name          = selectedProfile.name + " (Copy)";
+        copy.lastConnected = null;
+        copy.lastStatus    = null;
+
+        newlyCreatedProfile = copy;
+        profiles.add(copy);
+
         profileList.refresh();
+        profileList.setSelection(new StructuredSelection(copy));
+        isDirty         = true;
+        snapshotProfile = null; // Forces dirty because there is no snapshot yet
+        profileList.refresh(copy);
         updatePanelState();
+        nameField.setFocus();
+        nameField.selectAll();
     }
 
     private void browseTruststore() {
@@ -681,8 +758,6 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private void connect() {
-        saveCurrentProfile();
-
         if (selectedProfile == null) {
             return;
         }
@@ -710,7 +785,6 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                                                              final Path configPath = configWriter
                                                                      .writeHeadlessConfig(profileToConnect);
 
-                                                             // Get preferences
                                                              final IPreferenceStore preferences = OsgifxWorkspaceUtil
                                                                      .getPreferenceStore();
                                                              final boolean          useLocal    = preferences
@@ -741,7 +815,12 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                                                                                                               profileToConnect.lastStatus = "SUCCESS";
                                                                                                               profileStore
                                                                                                                       .update(profileToConnect);
-                                                                                                              close();
+
+                                                                                                              if (getShell() != null
+                                                                                                                      && !getShell()
+                                                                                                                              .isDisposed()) {
+                                                                                                                  close();
+                                                                                                              }
                                                                                                           });
                                                              } else {
                                                                  throw new Exception(launchStatus.getMessage());
@@ -753,22 +832,27 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                                                                                                           profileToConnect.lastStatus = "FAILURE";
                                                                                                           profileStore
                                                                                                                   .update(profileToConnect);
-                                                                                                          final Path logFile = OsgifxProcessLauncher.getLogFile(
-                                                                                                                  profileToConnect.id);
-                                                                                                          String msg = "Failed to launch OSGi.fx. " + e
-                                                                                                                  .getMessage();
-                                                                                                          if (logFile != null
-                                                                                                                  && Files.exists(
-                                                                                                                          logFile)) {
-                                                                                                              msg += "\n\nLog file created at: "
-                                                                                                                      + logFile
-                                                                                                                              .toAbsolutePath();
+
+                                                                                                          if (getShell() != null
+                                                                                                                  && !getShell()
+                                                                                                                          .isDisposed()) {
+                                                                                                              final Path logFile = OsgifxProcessLauncher.getLogFile(
+                                                                                                                      profileToConnect.id);
+                                                                                                              String msg = "Failed to launch OSGi.fx. " + e
+                                                                                                                      .getMessage();
+                                                                                                              if (logFile != null
+                                                                                                                      && Files.exists(
+                                                                                                                              logFile)) {
+                                                                                                                  msg += "\n\nLog file created at: "
+                                                                                                                          + logFile
+                                                                                                                                  .toAbsolutePath();
+                                                                                                              }
+                                                                                                              MessageDialog
+                                                                                                                      .openError(
+                                                                                                                              getShell(),
+                                                                                                                              "Connection Error",
+                                                                                                                              msg);
                                                                                                           }
-                                                                                                          MessageDialog
-                                                                                                                  .openError(
-                                                                                                                          getShell(),
-                                                                                                                          "Connection Error",
-                                                                                                                          msg);
                                                                                                       });
                                                              return Status.CANCEL_STATUS;
                                                          }
@@ -776,6 +860,42 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                                                  };
         job.setUser(true);
         job.schedule();
+    }
+
+    private ConnectionProfile cloneProfile(final ConnectionProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        final ConnectionProfile clone = new ConnectionProfile();
+        clone.id                 = profile.id;
+        clone.name               = profile.name;
+        clone.type               = profile.type;
+        clone.host               = profile.host;
+        clone.port               = profile.port;
+        clone.timeout            = profile.timeout;
+        clone.password           = profile.password;
+        clone.trustStorePath     = profile.trustStorePath;
+        clone.trustStorePassword = profile.trustStorePassword;
+        clone.server             = profile.server;
+        clone.mqttPort           = profile.mqttPort;
+        clone.mqttTimeout        = profile.mqttTimeout;
+        clone.clientId           = profile.clientId;
+        clone.username           = profile.username;
+        clone.mqttPassword       = profile.mqttPassword;
+        clone.pubTopic           = profile.pubTopic;
+        clone.subTopic           = profile.subTopic;
+        clone.lwtTopic           = profile.lwtTopic;
+        if (profile.tokenConfig != null) {
+            clone.tokenConfig               = new ConnectionProfile.TokenConfig();
+            clone.tokenConfig.authServerURL = profile.tokenConfig.authServerURL;
+            clone.tokenConfig.clientId      = profile.tokenConfig.clientId;
+            clone.tokenConfig.clientSecret  = profile.tokenConfig.clientSecret;
+            clone.tokenConfig.audience      = profile.tokenConfig.audience;
+            clone.tokenConfig.scope         = profile.tokenConfig.scope;
+        }
+        clone.lastConnected = profile.lastConnected;
+        clone.lastStatus    = profile.lastStatus;
+        return clone;
     }
 
     private void saveCurrentProfile() {
@@ -812,10 +932,184 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                 selectedProfile.tokenConfig.clientSecret  = clientSecretField.getText();
                 selectedProfile.tokenConfig.audience      = audienceField.getText();
                 selectedProfile.tokenConfig.scope         = scopeField.getText();
+            } else {
+                selectedProfile.tokenConfig = null;
             }
         }
 
-        profileStore.update(selectedProfile);
+        if (selectedProfile == newlyCreatedProfile) {
+            profileStore.add(selectedProfile);
+        } else {
+            profileStore.update(selectedProfile);
+        }
+        isDirty             = false;
+        newlyCreatedProfile = null;
+        snapshotProfile     = cloneProfile(selectedProfile);
+        profileList.refresh(selectedProfile);
+
+        // Disable the save button since we just saved
+        if (saveButton != null && !saveButton.isDisposed()) {
+            saveButton.setEnabled(false);
+        }
+    }
+
+    private boolean isProfileDirty() {
+        if (selectedProfile == null) {
+            return false;
+        }
+        if (selectedProfile == newlyCreatedProfile) {
+            return true;
+        }
+        if (snapshotProfile == null) {
+            return false;
+        }
+
+        // Compare basic info
+        if (!nameField.getText().equals(snapshotProfile.name)) {
+            return true;
+        }
+
+        if (tabFolder.getSelection() == socketTab) {
+            if (!"SOCKET".equals(snapshotProfile.type)) {
+                return true;
+            }
+            if (!hostField.getText().equals(snapshotProfile.host != null ? snapshotProfile.host : "")) {
+                return true;
+            }
+            if (portSpinner.getSelection() != snapshotProfile.port) {
+                return true;
+            }
+            if (timeoutSpinner.getSelection() != snapshotProfile.timeout) {
+                return true;
+            }
+            if (!passwordField.getText().equals(snapshotProfile.password != null ? snapshotProfile.password : "")) {
+                return true;
+            }
+            if (!truststorePathField.getText()
+                    .equals(snapshotProfile.trustStorePath != null ? snapshotProfile.trustStorePath : "")) {
+                return true;
+            }
+            if (!truststorePasswordField.getText()
+                    .equals(snapshotProfile.trustStorePassword != null ? snapshotProfile.trustStorePassword : "")) {
+                return true;
+            }
+        } else {
+            if (!"MQTT".equals(snapshotProfile.type)) {
+                return true;
+            }
+            if (!serverField.getText().equals(snapshotProfile.server != null ? snapshotProfile.server : "")) {
+                return true;
+            }
+            if (mqttPortSpinner.getSelection() != snapshotProfile.mqttPort) {
+                return true;
+            }
+            if (mqttTimeoutSpinner.getSelection() != snapshotProfile.mqttTimeout) {
+                return true;
+            }
+            if (!clientIdField.getText().equals(snapshotProfile.clientId != null ? snapshotProfile.clientId : "")) {
+                return true;
+            }
+            if (!usernameField.getText().equals(snapshotProfile.username != null ? snapshotProfile.username : "")) {
+                return true;
+            }
+            if (!mqttPasswordField.getText()
+                    .equals(snapshotProfile.mqttPassword != null ? snapshotProfile.mqttPassword : "")) {
+                return true;
+            }
+            if (!pubTopicField.getText().equals(snapshotProfile.pubTopic != null ? snapshotProfile.pubTopic : "")) {
+                return true;
+            }
+            if (!subTopicField.getText().equals(snapshotProfile.subTopic != null ? snapshotProfile.subTopic : "")) {
+                return true;
+            }
+            if (!lwtTopicField.getText().equals(snapshotProfile.lwtTopic != null ? snapshotProfile.lwtTopic : "")) {
+                return true;
+            }
+
+            // OAuth2 comparison
+            if (authServerUrlField.getText().isEmpty()) {
+                if (snapshotProfile.tokenConfig != null) {
+                    return true;
+                }
+            } else {
+                if (snapshotProfile.tokenConfig == null) {
+                    return true;
+                }
+                if (!authServerUrlField.getText()
+                        .equals(snapshotProfile.tokenConfig.authServerURL != null
+                                ? snapshotProfile.tokenConfig.authServerURL
+                                : "")) {
+                    return true;
+                }
+                if (!oauthClientIdField.getText().equals(
+                        snapshotProfile.tokenConfig.clientId != null ? snapshotProfile.tokenConfig.clientId : "")) {
+                    return true;
+                }
+                if (!clientSecretField.getText()
+                        .equals(snapshotProfile.tokenConfig.clientSecret != null
+                                ? snapshotProfile.tokenConfig.clientSecret
+                                : "")) {
+                    return true;
+                }
+                if (!audienceField.getText().equals(
+                        snapshotProfile.tokenConfig.audience != null ? snapshotProfile.tokenConfig.audience : "")) {
+                    return true;
+                }
+                if (!scopeField.getText()
+                        .equals(snapshotProfile.tokenConfig.scope != null ? snapshotProfile.tokenConfig.scope : "")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void markDirty() {
+        if (ignoreModifyListeners || selectedProfile == null) {
+            return;
+        }
+        final boolean nowDirty = isProfileDirty();
+        if (isDirty != nowDirty) {
+            isDirty = nowDirty;
+            profileList.update(selectedProfile, null);
+
+            // Toggle the Save button dynamically
+            if (saveButton != null && !saveButton.isDisposed()) {
+                saveButton.setEnabled(isDirty);
+            }
+        }
+    }
+
+    private boolean handleDirtyState() {
+        if (!isDirty || selectedProfile == null) {
+            return true;
+        }
+        final MessageDialog dialog = new MessageDialog(getShell(), "Save Changes", null,
+                                                       "The current connection profile has unsaved changes. Do you want to save them?",
+                                                       MessageDialog.QUESTION, new String[] { "Yes", "No", "Cancel" },
+                                                       0);
+        final int           result = dialog.open();
+        if (result == 0) { // Yes
+            saveCurrentProfile();
+            return true;
+        }
+        if (result == 1) { // No
+            if (selectedProfile == newlyCreatedProfile) {
+                profiles.remove(selectedProfile);
+                newlyCreatedProfile = null;
+                selectedProfile     = null;
+                clearFields();
+            } else if (snapshotProfile != null) {
+                // Restore the eagerly mutated name
+                selectedProfile.name = snapshotProfile.name;
+                // Reload the UI widgets to wipe out the discarded typed text
+                populateFields(selectedProfile);
+            }
+            isDirty = false;
+            profileList.refresh();
+            return true;
+        }
+        return false; // Cancel or Close
     }
 
     private void clearFields() {
@@ -879,7 +1173,15 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     private final class ProfileSelectionListener implements ISelectionChangedListener {
         @Override
         public void selectionChanged(final SelectionChangedEvent event) {
-            saveCurrentProfile();
+            if (ignoreSelectionChange) {
+                return;
+            }
+            if (!handleDirtyState()) {
+                ignoreSelectionChange = true;
+                profileList.setSelection(new StructuredSelection(selectedProfile));
+                ignoreSelectionChange = false;
+                return;
+            }
 
             final StructuredSelection selection = (StructuredSelection) event.getSelection();
             selectedProfile = (ConnectionProfile) selection.getFirstElement();
@@ -896,8 +1198,11 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                 clearFields();
             }
         }
+    }
 
-        private void populateFields(final ConnectionProfile profile) {
+    private void populateFields(final ConnectionProfile profile) {
+        ignoreModifyListeners = true;
+        try {
             nameField.setText(profile.name != null ? profile.name : "");
 
             if ("MQTT".equals(profile.type)) {
@@ -921,6 +1226,12 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                             .setText(profile.tokenConfig.clientSecret != null ? profile.tokenConfig.clientSecret : "");
                     audienceField.setText(profile.tokenConfig.audience != null ? profile.tokenConfig.audience : "");
                     scopeField.setText(profile.tokenConfig.scope != null ? profile.tokenConfig.scope : "");
+                } else {
+                    authServerUrlField.setText("");
+                    oauthClientIdField.setText("");
+                    clientSecretField.setText("");
+                    audienceField.setText("");
+                    scopeField.setText("");
                 }
             } else {
                 tabFolder.setSelection(socketTab);
@@ -931,10 +1242,14 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                 truststorePathField.setText(profile.trustStorePath != null ? profile.trustStorePath : "");
                 truststorePasswordField.setText(profile.trustStorePassword != null ? profile.trustStorePassword : "");
             }
-
-            updateStatusDisplay();
-            validateFields();
+            snapshotProfile = cloneProfile(profile);
+            isDirty         = newlyCreatedProfile == profile;
+        } finally {
+            ignoreModifyListeners = false;
         }
+
+        updateStatusDisplay();
+        validateFields();
     }
 
     private final class ConnectionProfileLabelProvider extends LabelProvider {
@@ -943,7 +1258,8 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
             if (element instanceof ConnectionProfile) {
                 final ConnectionProfile profile = (ConnectionProfile) element;
                 final String            icon    = getStatusIcon(profile.lastStatus);
-                return icon + " " + profile.name;
+                final String            dirty   = isDirty && profile == selectedProfile ? " *" : "";
+                return icon + " " + profile.name + dirty;
             }
             return super.getText(element);
         }
@@ -1001,6 +1317,22 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     protected void okPressed() {
         saveCurrentProfile();
         super.okPressed();
+    }
+
+    @Override
+    protected void cancelPressed() {
+        if (!handleDirtyState()) {
+            return; // User clicked 'Cancel' on the dirty prompt, abort closing
+        }
+        super.cancelPressed();
+    }
+
+    @Override
+    protected void handleShellCloseEvent() {
+        if (!handleDirtyState()) {
+            return; // User clicked 'Cancel' on the dirty prompt, abort window X closure
+        }
+        super.handleShellCloseEvent();
     }
 
     @Override
