@@ -15,20 +15,28 @@
 -->
 # OSGi.fx Eclipse Plugin
 
-This repository contains the Eclipse IDE integration for the OSGi.fx diagnostic tool. It is built as an Eclipse RCP plugin and feature, targeting **Java 17** and **Eclipse 2022-06**.
+This repository contains the Eclipse IDE integration for the [OSGi.fx](https://github.com/amitjoy/osgifx) diagnostic tool. It provides a seamless way to manage connections and launch the OSGi.fx console directly from your Eclipse environment.
 
-## Project Structure
+## 🚀 Key Features
+
+- **Connection Profiles**: Easily create and manage connection profiles for both **Socket** and **MQTT** protocols.
+- **Visual Status Tracking**: Real-time icons in the connection manager show success, failure, or neutral status of your profiles.
+- **Auto-managed Java 25 Runtime**: Automatically downloads and configures the required **Azul Zulu FX 25** runtime on the first launch, ensuring all JavaFX modules are available without manual setup.
+- **Flexible Source Selection**: Launch OSGi.fx using a specific local JAR file or by providing Maven GAV (Group:Artifact:Version) coordinates.
+- **Cache Management**: Dedicated preferences to manage and clear the downloaded runtime cache.
+
+## 📁 Project Structure
 
 - `com.osgifx.eclipse.target`: Target platform definition for Eclipse 2022-06.
 - `com.osgifx.eclipse.plugin`: The main OSGi.fx Launcher plugin.
 - `com.osgifx.eclipse.feature`: The Eclipse feature project that includes the launcher plugin.
 
-## Prerequisites
+## 🛠️ Prerequisites
 
-- **Java 17** or higher.
+- **Java 17** or higher (for building).
 - **Maven 3.8** or higher.
 
-## Building
+## 📦 Building
 
 To build the project, run the following command from the root directory:
 
@@ -37,25 +45,35 @@ mvn clean verify
 ```
 
 This will:
-1. Resolve the target platform dependencies.
-2. Compile the Java source code (Java 17).
-3. Generate the OSGi bundles (plugins).
-4. Create the Eclipse feature.
+1. Resolve target platform dependencies.
+2. Compile the Java source code.
+3. Generate OSGi bundles and the Eclipse feature.
 
-## Installation
+## 📥 Installation
 
-Once the build is successful, you can find the generated JARs in the `target` directories of the respective projects:
-- Feature: `com.osgifx.eclipse.feature/target/com.osgifx.eclipse.feature-8.0.0-SNAPSHOT.jar`
-- Plugin: `com.osgifx.eclipse.plugin/target/com.osgifx.eclipse.plugin-8.0.0-SNAPSHOT.jar`
+Once the build is successful, the generated artifacts can be found in the `target` directories:
+- **Feature**: `com.osgifx.eclipse.feature/target/com.osgifx.eclipse.feature-1.0.0-SNAPSHOT.jar`
+- **Plugin**: `com.osgifx.eclipse.plugin/target/com.osgifx.eclipse.plugin-1.0.0-SNAPSHOT.jar`
 
-## Development
+## ⚙️ Configuration
 
-The projects are Eclipse IDE compliant. To import them:
+Access the configuration via **Window > Preferences > OSGi.fx**.
+
+- **Java Runtime**: 
+    - Choose "Auto-manage Azul Zulu FX 25" (Recommended) to let the plugin handle the environment.
+    - Or specify a "Custom Java 25 Executable" if you already have one installed.
+- **OSGi.fx Source**:
+    - Select "Use local OSGi.fx JAR" to point to a specific version on your disk.
+    - Or provide a "Maven OSGi.fx Version (GAV)" (e.g., `com.osgifx:com.osgifx.console.application:1.0.0`) to fetch it automatically.
+
+## 🔧 Development
+
+The projects are fully Eclipse IDE compliant. To import:
 1. Open Eclipse IDE (2022-06 or later recommended).
 2. Go to `File > Import... > Maven > Existing Maven Projects`.
-3. Select the root directory of this repository.
-4. Set the target platform by opening `com.osgifx.eclipse.target/osgifx.target` and clicking "Set as Active Target Platform" in the editor.
+3. Select the root directory.
+4. Open `com.osgifx.eclipse.target/osgifx.target` and click "Set as Active Target Platform".
 
-## License
+## ⚖️ License
 
 This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
