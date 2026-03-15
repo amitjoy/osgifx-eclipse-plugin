@@ -1,0 +1,39 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Eclipse
+.metadata/
+.recommenders/
+RemoteSystemsTempFiles/
+.cache/
+*.log
+.factorypath
+bin/
+
+# Specific settings we want to ignore (keeping JDT and Resources prefs as per rules)
+.settings/*.prefs
+!.settings/org.eclipse.jdt.core.prefs
+!.settings/org.eclipse.core.resources.prefs
+
+# OS specialized files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Tycho / Equinox
+configuration/
+p2/
+work/
