@@ -32,12 +32,14 @@ import org.eclipse.jface.fieldassist.FieldDecorationRegistry;
 import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.layout.GridLayoutFactory;
 import org.eclipse.jface.resource.JFaceResources;
+import org.eclipse.jface.resource.LocalResourceManager;
+import org.eclipse.jface.resource.ResourceManager;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
 import org.eclipse.jface.viewers.LabelProvider;
-import org.eclipse.jface.viewers.ListViewer;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.StructuredSelection;
+import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabItem;
@@ -47,6 +49,7 @@ import org.eclipse.swt.events.ControlEvent;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
@@ -56,11 +59,13 @@ import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Spinner;
+import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
 import org.eclipse.ui.ISharedImages;
 import org.eclipse.ui.PlatformUI;
+import org.eclipse.ui.plugin.AbstractUIPlugin;
 
 import com.osgifx.eclipse.internal.downloader.AzulZuluDownloader;
 import com.osgifx.eclipse.internal.downloader.RunOsgiFxDownloader;
@@ -82,14 +87,14 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     private ConnectionProfile       selectedProfile;
 
     // UI Components
-    private ListViewer profileList;
-    private Composite  rightPanel;
-    private ToolItem   addItem;
-    private ToolItem   duplicateItem;
-    private ToolItem   removeItem;
-    private Text       nameField;
-    private Label      statusLabel;
-    private Label      lastConnectedLabel;
+    private TableViewer profileList;
+    private Composite   rightPanel;
+    private ToolItem    addItem;
+    private ToolItem    duplicateItem;
+    private ToolItem    removeItem;
+    private Text        nameField;
+    private Label       statusLabel;
+    private Label       lastConnectedLabel;
 
     // SOCKET fields
     private Text    hostField;
@@ -125,6 +130,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     // Validation
     private final Map<Control, ControlDecoration> decorations = new HashMap<>();
     private Button                                connectButton;
+    private ResourceManager                       resourceManager;
 
     // Fonts and colors
     private Font  headerFont;
@@ -140,6 +146,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     @Override
     public void create() {
         super.create();
+        resourceManager = new LocalResourceManager(JFaceResources.getResources(), getShell());
         initializeFonts();
         initializeColors();
         getShell().setText("OSGi.fx Connection Manager");
@@ -219,10 +226,14 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         separator.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
         // Profile list
-        profileList = new ListViewer(leftPanel, SWT.BORDER | SWT.V_SCROLL | SWT.SINGLE);
+        profileList = new TableViewer(leftPanel, SWT.BORDER | SWT.V_SCROLL | SWT.SINGLE | SWT.FULL_SELECTION);
         profileList.setContentProvider(ArrayContentProvider.getInstance());
         profileList.setLabelProvider(new ConnectionProfileLabelProvider());
-        profileList.getList().setLayoutData(GridDataFactory.fillDefaults().grab(true, true).create());
+
+        final var table = profileList.getTable();
+        table.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).create());
+        new TableColumn(table, SWT.NONE).setWidth(200);
+
         profileList.addSelectionChangedListener(new ProfileSelectionListener());
 
         // ToolBar for actions
@@ -466,8 +477,8 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     private void addValidation(final Text text, final String message) {
         final var decoration = new ControlDecoration(text, SWT.TOP | SWT.LEFT);
         decoration.setDescriptionText(message);
-        decoration.setImage(FieldDecorationRegistry.getDefault()
-                .getFieldDecoration(FieldDecorationRegistry.DEC_ERROR).getImage());
+        decoration.setImage(
+                FieldDecorationRegistry.getDefault().getFieldDecoration(FieldDecorationRegistry.DEC_ERROR).getImage());
         decoration.hide();
 
         decorations.put(text, decoration);
@@ -573,7 +584,6 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         spinner.setLayoutData(GridDataFactory.swtDefaults().align(SWT.BEGINNING, SWT.CENTER).create());
         return spinner;
     }
-
 
     private Button createConnectButton(final Composite parent) {
         final var button = new Button(parent, SWT.PUSH);
@@ -830,16 +840,29 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         }
     }
 
-    private static final class ConnectionProfileLabelProvider extends LabelProvider {
+    private final class ConnectionProfileLabelProvider extends LabelProvider {
         @Override
         public String getText(final Object element) {
             if (element instanceof ConnectionProfile) {
                 final var profile = (ConnectionProfile) element;
                 final var icon    = getStatusIcon(profile.lastStatus);
-                final var type    = "MQTT".equals(profile.type) ? "[MQTT]  " : "[SOCKET]";
-                return icon + " " + type + " " + profile.name;
+                return icon + " " + profile.name;
             }
             return super.getText(element);
+        }
+
+        @Override
+        public Image getImage(final Object element) {
+            if (element instanceof ConnectionProfile) {
+                final var profile    = (ConnectionProfile) element;
+                final var type       = profile.type;
+                final var iconPath   = "MQTT".equals(type) ? "icons/mqtt_connection.png"
+                        : "icons/socket_connection.png";
+                final var descriptor = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
+                        iconPath);
+                return resourceManager.createImage(descriptor);
+            }
+            return super.getImage(element);
         }
 
         private String getStatusIcon(final String status) {
@@ -871,6 +894,9 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         }
         decorations.values().forEach(ControlDecoration::dispose);
         decorations.clear();
+        if (resourceManager != null) {
+            resourceManager.dispose();
+        }
         return super.close();
     }
 
