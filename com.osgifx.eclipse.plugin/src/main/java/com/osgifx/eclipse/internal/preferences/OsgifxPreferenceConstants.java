@@ -20,9 +20,12 @@ public interface OsgifxPreferenceConstants {
     String AUTO_MANAGE_RUNTIME = "autoManageRuntime";
     String CUSTOM_JAVA_PATH    = "customJavaPath";
     String OSGIFX_GAV          = "osgifxGav";
+    String OSGIFX_LOCAL_JAR    = "osgifxLocalJar";
+    String USE_LOCAL_JAR       = "useLocalJar";
     String DOWNLOAD_CACHE_DIR  = "downloadCacheDir";
 
     // Defaults
     boolean DEFAULT_AUTO_MANAGE = true;
+    boolean DEFAULT_USE_LOCAL   = false;
     String  DEFAULT_GAV         = "com.osgifx:osgifx:latest";
 }

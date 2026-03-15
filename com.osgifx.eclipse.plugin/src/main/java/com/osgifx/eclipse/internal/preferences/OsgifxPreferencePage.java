@@ -18,10 +18,13 @@ package com.osgifx.eclipse.internal.preferences;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.AUTO_MANAGE_RUNTIME;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.CUSTOM_JAVA_PATH;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.OSGIFX_GAV;
+import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.OSGIFX_LOCAL_JAR;
+import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.USE_LOCAL_JAR;
 
 import java.io.File;
 
 import org.eclipse.jface.preference.BooleanFieldEditor;
+import org.eclipse.jface.preference.FieldEditor;
 import org.eclipse.jface.preference.FieldEditorPreferencePage;
 import org.eclipse.jface.preference.FileFieldEditor;
 import org.eclipse.jface.preference.StringFieldEditor;
@@ -35,17 +38,20 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 
+import com.osgifx.eclipse.internal.Activator;
 import com.osgifx.eclipse.internal.util.OsgifxWorkspaceUtil;
 
 public final class OsgifxPreferencePage extends FieldEditorPreferencePage implements IWorkbenchPreferencePage {
 
     private BooleanFieldEditor autoManageEditor;
     private FileFieldEditor    customJavaEditor;
+    private BooleanFieldEditor useLocalJarEditor;
+    private FileFieldEditor    localJarEditor;
     private StringFieldEditor  gavEditor;
 
     public OsgifxPreferencePage() {
         super(GRID);
-        setPreferenceStore(OsgifxWorkspaceUtil.getPreferenceStore());
+        setPreferenceStore(Activator.getInstance().getPreferenceStore());
         setDescription("OSGi.fx Launcher Runtime Configuration");
     }
 
@@ -57,11 +63,20 @@ public final class OsgifxPreferencePage extends FieldEditorPreferencePage implem
                                                   parent);
         addField(autoManageEditor);
 
-        customJavaEditor = new FileFieldEditor(CUSTOM_JAVA_PATH, "Custom Java 25 Executable:", true, parent);
+        customJavaEditor = new FileFieldEditor(CUSTOM_JAVA_PATH, "Custom Java 25 Executable:", parent);
         customJavaEditor.setFileExtensions(new String[] { "*.exe", "*" });
         addField(customJavaEditor);
 
-        gavEditor = new StringFieldEditor(OSGIFX_GAV, "OSGi.fx Version (GAV):", parent);
+        new Label(parent, SWT.NONE); // Spacer
+
+        useLocalJarEditor = new BooleanFieldEditor(USE_LOCAL_JAR, "Use local OSGi.fx JAR (Overwrites GAV)", parent);
+        addField(useLocalJarEditor);
+
+        localJarEditor = new FileFieldEditor(OSGIFX_LOCAL_JAR, "Local OSGi.fx JAR Path:", parent);
+        localJarEditor.setFileExtensions(new String[] { "*.jar" });
+        addField(localJarEditor);
+
+        gavEditor = new StringFieldEditor(OSGIFX_GAV, "Maven OSGi.fx Version (GAV):", parent);
         gavEditor.setEmptyStringAllowed(false);
         addField(gavEditor);
 
@@ -116,18 +131,34 @@ public final class OsgifxPreferencePage extends FieldEditorPreferencePage implem
     @Override
     protected void initialize() {
         super.initialize();
-        updateCustomJavaEnablement();
+        updateEnablement();
     }
 
     @Override
     protected void checkState() {
         super.checkState();
-        updateCustomJavaEnablement();
+        updateEnablement();
     }
 
-    private void updateCustomJavaEnablement() {
-        final var autoManage = getPreferenceStore().getBoolean(AUTO_MANAGE_RUNTIME);
+    @Override
+    public void propertyChange(org.eclipse.jface.util.PropertyChangeEvent event) {
+        super.propertyChange(event);
+        if (FieldEditor.VALUE.equals(event.getProperty())) {
+            updateEnablement();
+        }
+    }
+
+    private void updateEnablement() {
+        if (autoManageEditor == null || customJavaEditor == null || useLocalJarEditor == null || localJarEditor == null
+                || gavEditor == null) {
+            return;
+        }
+        final var autoManage = autoManageEditor.getBooleanValue();
         customJavaEditor.setEnabled(!autoManage, getFieldEditorParent());
+
+        final var useLocal = useLocalJarEditor.getBooleanValue();
+        localJarEditor.setEnabled(useLocal, getFieldEditorParent());
+        gavEditor.setEnabled(!useLocal, getFieldEditorParent());
     }
 
     @Override

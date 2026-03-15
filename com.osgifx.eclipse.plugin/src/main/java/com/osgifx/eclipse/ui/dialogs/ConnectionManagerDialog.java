@@ -16,6 +16,8 @@
 package com.osgifx.eclipse.ui.dialogs;
 
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.OSGIFX_GAV;
+import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.OSGIFX_LOCAL_JAR;
+import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.USE_LOCAL_JAR;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -661,12 +663,16 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
             final Path configPath = configWriter.writeHeadlessConfig(selectedProfile);
 
-            // Get GAV from preferences
-            final String gav = OsgifxWorkspaceUtil.getPreferenceStore().getString(OSGIFX_GAV);
+            // Get preferences
+            final var preferences = OsgifxWorkspaceUtil.getPreferenceStore();
+            final var useLocal    = preferences.getBoolean(USE_LOCAL_JAR);
+            final var localJar    = preferences.getString(OSGIFX_LOCAL_JAR);
+            final var gav         = preferences.getString(OSGIFX_GAV);
 
             final var launcher = new OsgifxProcessLauncher(selectedProfile, configPath,
                                                            zuluDownloader.getJavaExecutablePath(),
-                                                           scriptDownloader.getScriptPath(), gav);
+                                                           scriptDownloader.getScriptPath(), gav,
+                                                           useLocal ? localJar : null);
 
             launcher.schedule();
 

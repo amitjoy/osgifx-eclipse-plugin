@@ -66,4 +66,8 @@
 			name="OSGi.fx"
 			class="com.osgifx.eclipse.internal.preferences.OsgifxPreferencePage"/>
 	</extension>
+
+	<extension point="org.eclipse.core.runtime.preferences">
+		<initializer class="com.osgifx.eclipse.internal.preferences.OsgifxPreferenceInitializer"/>
+	</extension>
 </plugin>

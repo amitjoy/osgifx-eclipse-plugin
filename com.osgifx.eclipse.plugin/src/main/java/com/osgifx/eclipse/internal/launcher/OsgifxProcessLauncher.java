@@ -38,18 +38,21 @@ public final class OsgifxProcessLauncher extends Job {
     private final Path              javaExePath;
     private final Path              scriptPath;
     private final String            gav;
+    private final String            localJar;
 
     public OsgifxProcessLauncher(final ConnectionProfile profile,
                                  final Path configPath,
                                  final Path javaExePath,
                                  final Path scriptPath,
-                                 final String gav) {
+                                 final String gav,
+                                 final String localJar) {
         super("Launching OSGi.fx");
         this.profile     = profile;
         this.configPath  = configPath;
         this.javaExePath = javaExePath;
         this.scriptPath  = scriptPath;
         this.gav         = gav;
+        this.localJar    = localJar;
     }
 
     @Override
@@ -92,8 +95,13 @@ public final class OsgifxProcessLauncher extends Job {
         cmd.add("--source");
         cmd.add("25");
         cmd.add(scriptPath.toString());
-        cmd.add("--gav");
-        cmd.add(gav);
+        if (localJar != null && !localJar.isBlank()) {
+            cmd.add("--jar");
+            cmd.add(localJar);
+        } else {
+            cmd.add("--gav");
+            cmd.add(gav);
+        }
         cmd.add("-Dosgifx.config=" + configPath);
         return cmd;
     }
