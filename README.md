@@ -30,10 +30,11 @@ This repository contains the Eclipse IDE integration for the [OSGi.fx](https://g
 - `com.osgifx.eclipse.target`: Target platform definition for Eclipse 2022-06.
 - `com.osgifx.eclipse.plugin`: The main OSGi.fx Launcher plugin.
 - `com.osgifx.eclipse.feature`: The Eclipse feature project that includes the launcher plugin.
+- `org.osgifx.eclipse.repository`: The P2 update site for installing the plugin.
 
 ## 🛠️ Prerequisites
 
-- **Java 17** or higher (for building).
+- **Java 17** (Ensure you are using Java 17 for building).
 - **Maven 3.8** or higher.
 
 ## 📦 Building
@@ -41,19 +42,29 @@ This repository contains the Eclipse IDE integration for the [OSGi.fx](https://g
 To build the project, run the following command from the root directory:
 
 ```bash
-mvn clean verify
+mvn clean verify -Dtycho.p2.transport=apache
 ```
 
 This will:
 1. Resolve target platform dependencies.
 2. Compile the Java source code.
 3. Generate OSGi bundles and the Eclipse feature.
+4. Create the P2 update site.
+
+### 🔏 GPG Signing
+To sign the P2 repository (e.g., for official releases), use the `ossrh` profile:
+```bash
+mvn clean verify -Possrh
+```
 
 ## 📥 Installation
 
-Once the build is successful, the generated artifacts can be found in the `target` directories:
-- **Feature**: `com.osgifx.eclipse.feature/target/com.osgifx.eclipse.feature-1.0.0-SNAPSHOT.jar`
-- **Plugin**: `com.osgifx.eclipse.plugin/target/com.osgifx.eclipse.plugin-1.0.0-SNAPSHOT.jar`
+Once the build is successful, you can install the plugin via the generated P2 repository:
+
+1. In Eclipse, go to **Help > Install New Software...**.
+2. Click **Add...** and then **Local...**.
+3. Select the `org.osgifx.eclipse.repository/target/repository/` folder.
+4. Follow the installation wizard.
 
 ## ⚙️ Configuration
 

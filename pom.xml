@@ -23,7 +23,7 @@
   <packaging>pom</packaging>
 
   <properties>
-    <tycho-version>2.7.2</tycho-version>
+    <tycho-version>3.0.5</tycho-version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
@@ -34,6 +34,7 @@
     <module>com.osgifx.eclipse.target</module>
     <module>com.osgifx.eclipse.plugin</module>
     <module>com.osgifx.eclipse.feature</module>
+    <module>org.osgifx.eclipse.repository</module>
   </modules>
 
   <build>
@@ -151,4 +152,26 @@
       </plugins>
     </pluginManagement>
   </build>
+  <profiles>
+    <profile>
+      <id>ossrh</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.eclipse.tycho</groupId>
+            <artifactId>tycho-gpg-plugin</artifactId>
+            <version>${tycho-version}</version>
+            <executions>
+              <execution>
+                <id>sign-p2-artifacts</id>
+                <goals>
+                  <goal>sign-p2-artifacts</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
