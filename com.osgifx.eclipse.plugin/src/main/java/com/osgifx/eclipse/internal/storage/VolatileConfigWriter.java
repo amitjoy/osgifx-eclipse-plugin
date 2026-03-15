@@ -37,8 +37,7 @@ public final class VolatileConfigWriter {
 
     public Path writeHeadlessConfig(final ConnectionProfile profile) {
         configDir.mkdirs();
-        final var configFile = new File(configDir, CONFIG_FILENAME);
-
+        final var configFile     = new File(configDir, CONFIG_FILENAME);
         final var headlessConfig = convertToHeadlessFormat(profile);
 
         try (final var writer = new FileWriter(configFile)) {

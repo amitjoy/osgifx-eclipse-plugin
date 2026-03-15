@@ -24,6 +24,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -56,13 +57,19 @@ public final class AzulZuluDownloader extends Job {
 
     public Path getJavaExecutablePath() {
         final var runtimePath = getRuntimePath();
-        final var binDir      = runtimePath.resolve("bin");
         final var javaExe     = SystemUtils.IS_OS_WINDOWS ? "java.exe" : "java";
-        return binDir.resolve(javaExe);
+
+        try (final var stream = Files.walk(runtimePath)) {
+            return stream.filter(Files::isRegularFile).filter(path -> path.getFileName().toString().equals(javaExe))
+                    .filter(path -> path.getParent().getFileName().toString().equals("bin")).findFirst().orElse(null);
+        } catch (final IOException e) {
+            return null;
+        }
     }
 
     public boolean isRuntimeAvailable() {
-        return Files.exists(getJavaExecutablePath());
+        final var path = getJavaExecutablePath();
+        return path != null && Files.exists(path);
     }
 
     @Override
@@ -90,9 +97,7 @@ public final class AzulZuluDownloader extends Job {
             Files.deleteIfExists(archiveFile.toPath());
 
             monitor.subTask("Validating JavaFX modules...");
-            if (!validateJavaFx()) {
-                return errorStatus("Downloaded runtime does not contain JavaFX modules");
-            }
+            validateJavaFx();
 
             return Status.OK_STATUS;
         } catch (final Exception e) {
@@ -106,18 +111,16 @@ public final class AzulZuluDownloader extends Job {
         final var os   = detectOs();
         final var arch = detectArch();
         final var url  = new URL(API_URL + "?java_version=" + VERSION + "&os=" + os + "&arch=" + arch
-                + "&archive_type=dmg&java_package_type=jre&javafx=true&latest=true");
+                + "&archive_type=zip&java_package_type=jdk&javafx_bundled=true&latest=true");
 
         try (final var is = url.openStream()) {
             final var response = new String(is.readAllBytes());
             final var packages = gson.fromJson(response, JsonArray.class);
 
             for (final var element : packages) {
-                final var pkg       = element.getAsJsonObject();
-                final var downloads = pkg.getAsJsonArray("downloads");
-                if (downloads != null && !downloads.isEmpty()) {
-                    final var download = downloads.get(0).getAsJsonObject();
-                    return download.get("url").getAsString();
+                final var pkg = element.getAsJsonObject();
+                if (pkg.has("download_url")) {
+                    return pkg.get("download_url").getAsString();
                 }
             }
         }
@@ -170,22 +173,16 @@ public final class AzulZuluDownloader extends Job {
     }
 
     private void extractArchive(final File archive, final File targetDir) throws IOException {
+        if (targetDir.exists()) {
+            OsgifxWorkspaceUtil.deleteDirectory(targetDir.toPath());
+        }
         targetDir.mkdirs();
 
         try (final var fis = new FileInputStream(archive); final var zis = new ZipInputStream(fis)) {
-
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
-                final var entryPath = entry.getName();
-                // Skip the root directory in the archive
-                final var slashIndex   = entryPath.indexOf('/');
-                final var relativePath = slashIndex >= 0 ? entryPath.substring(slashIndex + 1) : entryPath;
-
-                if (relativePath.isEmpty()) {
-                    continue;
-                }
-
-                final var targetFile = new File(targetDir, relativePath);
+                final var entryPath  = entry.getName();
+                final var targetFile = new File(targetDir, entryPath);
 
                 if (entry.isDirectory()) {
                     targetFile.mkdirs();
@@ -193,8 +190,8 @@ public final class AzulZuluDownloader extends Job {
                     targetFile.getParentFile().mkdirs();
                     Files.copy(zis, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
-                    // Set executable permission on Unix-like systems
-                    if (!SystemUtils.IS_OS_WINDOWS && relativePath.startsWith("bin/")) {
+                    // Set executable permission on Unix-like systems for bin binaries
+                    if (!SystemUtils.IS_OS_WINDOWS && (entryPath.contains("/bin/") || entryPath.startsWith("bin/"))) {
                         targetFile.setExecutable(true);
                     }
                 }
@@ -202,20 +199,32 @@ public final class AzulZuluDownloader extends Job {
         }
     }
 
-    private boolean validateJavaFx() throws IOException, InterruptedException {
+    private void validateJavaFx() throws Exception {
         final var javaExe = getJavaExecutablePath();
-        if (!Files.exists(javaExe)) {
-            return false;
+        if (javaExe == null || !Files.exists(javaExe)) {
+            throw new Exception("Java executable not found in extracted runtime");
         }
 
-        final var pb = new ProcessBuilder(javaExe.toString(), "--list-modules");
+        final var cmd = new ArrayList<String>();
+        cmd.add(javaExe.toString());
+        if (SystemUtils.IS_OS_MAC) {
+            cmd.add("-Djdk.lang.Process.launchMechanism=FORK");
+        }
+        cmd.add("--list-modules");
+
+        final var pb = new ProcessBuilder(cmd);
         pb.redirectErrorStream(true);
 
         final var process = pb.start();
         try (final var is = process.getInputStream()) {
             final var output = new String(is.readAllBytes());
             process.waitFor();
-            return output.contains("javafx.controls");
+            if (!output.contains("javafx.controls")) {
+                throw new Exception("Downloaded runtime does not contain JavaFX modules");
+            }
+            if (!output.contains("jdk.compiler")) {
+                throw new Exception("Downloaded runtime does not contain the Java compiler (jdk.compiler) required to launch the script");
+            }
         }
     }
 

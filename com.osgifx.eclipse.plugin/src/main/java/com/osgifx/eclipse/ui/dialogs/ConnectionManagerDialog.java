@@ -20,6 +20,7 @@ import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.USE_LOCAL_JAR;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -28,6 +29,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.fieldassist.ControlDecoration;
 import org.eclipse.jface.fieldassist.FieldDecorationRegistry;
@@ -48,6 +54,8 @@ import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.ScrolledComposite;
 import org.eclipse.swt.events.ControlAdapter;
 import org.eclipse.swt.events.ControlEvent;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
@@ -332,12 +340,16 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         mqttTab.setControl(mqttComposite);
 
         tabFolder.setSelection(0);
-        tabFolder.addSelectionListener(new org.eclipse.swt.events.SelectionAdapter() {
+        tabFolder.addSelectionListener(new SelectionAdapter() {
             @Override
-            public void widgetSelected(final org.eclipse.swt.events.SelectionEvent e) {
-                if (selectedProfile != null && selectedProfile == newlyCreatedProfile) {
-                    selectedProfile.type = tabFolder.getSelection() == socketTab ? "SOCKET" : "MQTT";
-                    profileList.refresh(selectedProfile);
+            public void widgetSelected(final SelectionEvent e) {
+                if (selectedProfile != null) {
+                    final var type = tabFolder.getSelection() == socketTab ? "SOCKET" : "MQTT";
+                    // Only update and refresh if type actually changed and it's a new profile
+                    if (!type.equals(selectedProfile.type) && selectedProfile == newlyCreatedProfile) {
+                        selectedProfile.type = type;
+                        profileList.refresh(selectedProfile);
+                    }
                 }
                 validateFields();
             }
@@ -672,46 +684,85 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
             return;
         }
 
-        try {
-            final var zuluDownloader = new AzulZuluDownloader();
-            if (!zuluDownloader.isRuntimeAvailable()) {
-                zuluDownloader.schedule();
-                zuluDownloader.join();
-            }
+        final var profileToConnect = selectedProfile;
+        final var job              = new Job("Launching OSGi.fx: " + profileToConnect.name) {
+                                       @Override
+                                       protected IStatus run(final IProgressMonitor monitor) {
+                                           try {
+                                               final var zuluDownloader = new AzulZuluDownloader();
+                                               if (!zuluDownloader.isRuntimeAvailable()) {
+                                                   zuluDownloader.schedule();
+                                                   zuluDownloader.join();
+                                                   final var result = zuluDownloader.getResult();
+                                                   if (result != null && !result.isOK()) {
+                                                       throw new Exception(result.getMessage());
+                                                   }
+                                               }
 
-            final var scriptDownloader = new RunOsgiFxDownloader();
-            if (!scriptDownloader.isScriptAvailable()) {
-                scriptDownloader.download();
-            }
+                                               final var scriptDownloader = new RunOsgiFxDownloader();
+                                               if (!scriptDownloader.isScriptAvailable()) {
+                                                   scriptDownloader.download();
+                                               }
 
-            final Path configPath = configWriter.writeHeadlessConfig(selectedProfile);
+                                               final Path configPath = configWriter
+                                                       .writeHeadlessConfig(profileToConnect);
 
-            // Get preferences
-            final var preferences = OsgifxWorkspaceUtil.getPreferenceStore();
-            final var useLocal    = preferences.getBoolean(USE_LOCAL_JAR);
-            final var localJar    = preferences.getString(OSGIFX_LOCAL_JAR);
-            final var gav         = preferences.getString(OSGIFX_GAV);
+                                               // Get preferences
+                                               final var preferences = OsgifxWorkspaceUtil.getPreferenceStore();
+                                               final var useLocal    = preferences.getBoolean(USE_LOCAL_JAR);
+                                               final var localJar    = preferences.getString(OSGIFX_LOCAL_JAR);
+                                               final var gav         = preferences.getString(OSGIFX_GAV);
 
-            final var launcher = new OsgifxProcessLauncher(selectedProfile, configPath,
-                                                           zuluDownloader.getJavaExecutablePath(),
-                                                           scriptDownloader.getScriptPath(), gav,
-                                                           useLocal ? localJar : null);
+                                               final var launcher = new OsgifxProcessLauncher(profileToConnect,
+                                                                                              configPath,
+                                                                                              zuluDownloader
+                                                                                                      .getJavaExecutablePath(),
+                                                                                              scriptDownloader
+                                                                                                      .getScriptPath(),
+                                                                                              gav, useLocal ? localJar
+                                                                                                      : null);
 
-            launcher.schedule();
+                                               launcher.schedule();
+                                               launcher.join();                                                                                     // Wait
+                                                                                                                                                    // for
+                                                                                                                                                    // verification
+                                                                                                                                                    // loop
 
-            selectedProfile.lastConnected = Instant.now().toString();
-            selectedProfile.lastStatus    = "SUCCESS";
-            profileStore.update(selectedProfile);
+                                               final var launchStatus = launcher.getResult();
 
-            close();
-        } catch (final Exception e) {
-            if (selectedProfile != null) {
-                selectedProfile.lastStatus = "FAILURE";
-                profileStore.update(selectedProfile);
-            }
-            org.eclipse.jface.dialogs.MessageDialog.openError(getShell(), "Connection Error",
-                    "Failed to launch OSGi.fx: " + e.getMessage());
-        }
+                                               if (launchStatus.isOK()) {
+                                                   Display.getDefault().asyncExec(() -> {
+                                                                                  profileToConnect.lastConnected = Instant.now().toString();
+                                                                                  profileToConnect.lastStatus = "SUCCESS";
+                                                                                  profileStore.update(profileToConnect);
+                                                                                  close();
+                                                                              });
+                                               } else {
+                                                   throw new Exception(launchStatus.getMessage());
+                                               }
+
+                                               return Status.OK_STATUS;
+                                           } catch (final Exception e) {
+                                               Display.getDefault().asyncExec(() -> {
+                                                                              profileToConnect.lastStatus = "FAILURE";
+                                                                              profileStore.update(profileToConnect);
+                                                                              final var logFile = OsgifxProcessLauncher
+                                                                                      .getLogFile(profileToConnect.id);
+                                                                              var msg = "Failed to launch OSGi.fx. " + e.getMessage();
+                                                                              if (logFile != null
+                                                                                      && Files.exists(logFile)) {
+                                                                                  msg += "\n\nLog file created at: "
+                                                                                          + logFile.toAbsolutePath();
+                                                                              }
+                                                                              MessageDialog.openError(getShell(),
+                                                                                      "Connection Error", msg);
+                                                                          });
+                                               return Status.CANCEL_STATUS;
+                                           }
+                                       }
+                                   };
+        job.setUser(true);
+        job.schedule();
     }
 
     private void saveCurrentProfile() {

@@ -16,6 +16,10 @@
 package com.osgifx.eclipse.internal.util;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Comparator;
 
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.preferences.InstanceScope;
@@ -29,6 +33,23 @@ public final class OsgifxWorkspaceUtil {
 
     private OsgifxWorkspaceUtil() {
         throw new IllegalAccessError("Cannot be instantiated");
+    }
+
+    public static void deleteDirectory(final Path directory) throws IOException {
+        if (!Files.exists(directory)) {
+            return;
+        }
+        try (var walk = Files.walk(directory)) {
+            walk.sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
+        }
+    }
+
+    public static File getLogsLocation() {
+        final var logs = new File(getStateLocation(), "logs");
+        if (!logs.exists()) {
+            logs.mkdirs();
+        }
+        return logs;
     }
 
     public static File getStateLocation() {

@@ -27,7 +27,7 @@ import com.osgifx.eclipse.internal.util.OsgifxWorkspaceUtil;
 
 public final class RunOsgiFxDownloader {
 
-    private static final String SCRIPT_URL      = "https://raw.githubusercontent.com/amitjoy/osgifx/main/RunOSGiFx";
+    private static final String SCRIPT_URL      = "https://raw.githubusercontent.com/amitjoy/osgifx/main/scripts/RunOSGiFx";
     private static final String SCRIPT_FILENAME = "RunOSGiFx";
 
     public Path getScriptPath() {

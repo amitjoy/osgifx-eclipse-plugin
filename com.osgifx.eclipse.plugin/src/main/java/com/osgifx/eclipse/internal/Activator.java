@@ -52,4 +52,10 @@ public final class Activator extends AbstractUIPlugin {
     public static Preferences getPreferences() {
         return InstanceScope.INSTANCE.getNode(PLUGIN_ID);
     }
+
+    public static void log(final int severity, final String message, final Throwable throwable) {
+        if (instance != null) {
+            instance.getLog().log(new org.eclipse.core.runtime.Status(severity, PLUGIN_ID, message, throwable));
+        }
+    }
 }
