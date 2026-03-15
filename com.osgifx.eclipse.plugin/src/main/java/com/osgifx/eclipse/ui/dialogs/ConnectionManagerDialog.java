@@ -125,9 +125,10 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     private Text scopeField;
 
     // Tab folder for protocol switching
-    private CTabFolder tabFolder;
-    private CTabItem   socketTab;
-    private CTabItem   mqttTab;
+    private CTabFolder        tabFolder;
+    private CTabItem          socketTab;
+    private CTabItem          mqttTab;
+    private ConnectionProfile newlyCreatedProfile;
 
     // Validation
     private final Map<Control, ControlDecoration> decorations = new HashMap<>();
@@ -291,6 +292,12 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
         createFormLabel(nameComposite, "Profile Name:");
         nameField = createFormText(nameComposite, "Enter profile name...");
+        nameField.addModifyListener(e -> {
+            if (selectedProfile != null) {
+                selectedProfile.name = nameField.getText();
+                profileList.refresh(selectedProfile);
+            }
+        });
         addValidation(nameField, "Profile name is required");
 
         // Last connected info
@@ -328,6 +335,10 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         tabFolder.addSelectionListener(new org.eclipse.swt.events.SelectionAdapter() {
             @Override
             public void widgetSelected(final org.eclipse.swt.events.SelectionEvent e) {
+                if (selectedProfile != null && selectedProfile == newlyCreatedProfile) {
+                    selectedProfile.type = tabFolder.getSelection() == socketTab ? "SOCKET" : "MQTT";
+                    profileList.refresh(selectedProfile);
+                }
                 validateFields();
             }
         });
@@ -544,6 +555,9 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         duplicateItem.setEnabled(isSelection);
         removeItem.setEnabled(isSelection);
 
+        // Only allow tab switching for newly created profiles
+        final var isNew = selectedProfile != null && selectedProfile == newlyCreatedProfile;
+        tabFolder.setEnabled(isNew);
         if (!isSelection) {
             decorations.values().forEach(ControlDecoration::hide);
             if (connectButton != null && !connectButton.isDisposed()) {
@@ -605,6 +619,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
     private void addProfile() {
         final var profile = new ConnectionProfile("New Connection", "SOCKET");
+        newlyCreatedProfile = profile;
         profiles.add(profile);
         profileStore.add(profile);
         profileList.refresh();
@@ -808,6 +823,10 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
             updatePanelState();
 
             if (selectedProfile != null) {
+                if (selectedProfile != newlyCreatedProfile) {
+                    newlyCreatedProfile = null;
+                    updatePanelState(); // Re-update to lock the tabs
+                }
                 populateFields(selectedProfile);
             } else {
                 clearFields();
