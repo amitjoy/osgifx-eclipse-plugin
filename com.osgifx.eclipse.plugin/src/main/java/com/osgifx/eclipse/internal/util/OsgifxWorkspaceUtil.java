@@ -20,11 +20,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.stream.Stream;
 
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.ui.preferences.ScopedPreferenceStore;
+import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
 
 public final class OsgifxWorkspaceUtil {
@@ -39,13 +42,13 @@ public final class OsgifxWorkspaceUtil {
         if (!Files.exists(directory)) {
             return;
         }
-        try (var walk = Files.walk(directory)) {
+        try (Stream<Path> walk = Files.walk(directory)) {
             walk.sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
         }
     }
 
     public static File getLogsLocation() {
-        final var logs = new File(getStateLocation(), "logs");
+        final File logs = new File(getStateLocation(), "logs");
         if (!logs.exists()) {
             logs.mkdirs();
         }
@@ -53,15 +56,15 @@ public final class OsgifxWorkspaceUtil {
     }
 
     public static File getStateLocation() {
-        final var bundle = FrameworkUtil.getBundle(OsgifxWorkspaceUtil.class);
+        final Bundle bundle = FrameworkUtil.getBundle(OsgifxWorkspaceUtil.class);
         if (bundle != null) {
-            final var state = Platform.getStateLocation(bundle);
+            final IPath state = Platform.getStateLocation(bundle);
             if (state != null) {
                 return state.toFile();
             }
         }
         // Fallback for non-OSGi or if Platform is not available
-        final var userHome = System.getProperty("user.home");
+        final String userHome = System.getProperty("user.home");
         return new File(userHome, ".osgifx-eclipse");
     }
 

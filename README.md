@@ -34,7 +34,7 @@ This repository contains the Eclipse IDE integration for the [OSGi.fx](https://g
 
 ## 🛠️ Prerequisites
 
-- **Java 17** (Ensure you are using Java 17 for building).
+- **Java 11** (Ensure you are using Java 11 or higher for building).
 - **Maven 3.8** or higher.
 
 ## 📦 Building

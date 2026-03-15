@@ -9,7 +9,7 @@ Bundle-Copyright: Copyright (c) Amit Kumar Mondal 2026. All Right
 Bundle-Description: Eclipse IDE integration for OSGi.fx diagnostic too
  l
 Bundle-Developers: amit.kumar.mondal;email="admin@amitinside.com";name
- ="Amit Kumar Mondal";organization="Deutsche Telekom AG";organizationU
+ ="Amit Kumar Mondal";organization="Deutsche Telekom";organizationU
  rl="https://www.telekom.de/";roles="architect,developer,engineer";tim
  ezone="Europe/Berlin"
 Bundle-DocURL: https://osgifx.com
@@ -22,7 +22,7 @@ Bundle-SCM: url=https://github.com/amitjoy/osgifx-eclipse-plugin.git,connection=
 Bundle-SymbolicName: com.osgifx.eclipse.plugin;singleton:=true
 Bundle-Vendor: OSGi.fx
 Bundle-Version: 1.0.0.qualifier
-Bundle-RequiredExecutionEnvironment: JavaSE-17
+Bundle-RequiredExecutionEnvironment: JavaSE-11
 Import-Package: com.google.gson;version="[2.7,3)",
  com.google.gson.reflect;version="[2.7,3)",
  java.io,

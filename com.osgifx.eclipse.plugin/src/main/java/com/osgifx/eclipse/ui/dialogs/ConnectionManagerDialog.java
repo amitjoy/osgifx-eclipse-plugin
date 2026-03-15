@@ -39,6 +39,8 @@ import org.eclipse.jface.fieldassist.ControlDecoration;
 import org.eclipse.jface.fieldassist.FieldDecorationRegistry;
 import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.layout.GridLayoutFactory;
+import org.eclipse.jface.preference.IPreferenceStore;
+import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.resource.LocalResourceManager;
 import org.eclipse.jface.resource.ResourceManager;
@@ -69,6 +71,7 @@ import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Spinner;
+import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.ToolBar;
@@ -169,29 +172,29 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private void initializeFonts() {
-        final var display    = Display.getCurrent();
-        final var systemFont = JFaceResources.getDefaultFont();
-        final var fontData   = systemFont.getFontData();
+        final Display    display    = Display.getCurrent();
+        final Font       systemFont = JFaceResources.getDefaultFont();
+        final FontData[] fontData   = systemFont.getFontData();
 
         // Header font (larger, bold)
-        final var headerFontData = new FontData(fontData[0].getName(), fontData[0].getHeight() + 2, SWT.BOLD);
+        final FontData headerFontData = new FontData(fontData[0].getName(), fontData[0].getHeight() + 2, SWT.BOLD);
         headerFont = new Font(display, headerFontData);
 
         // Bold font
-        final var boldFontData = new FontData(fontData[0].getName(), fontData[0].getHeight(), SWT.BOLD);
+        final FontData boldFontData = new FontData(fontData[0].getName(), fontData[0].getHeight(), SWT.BOLD);
         boldFont = new Font(display, boldFontData);
     }
 
     private void initializeColors() {
-        final var display = Display.getCurrent();
+        final Display display = Display.getCurrent();
         successColor = new Color(display, 46, 125, 50); // Green
         errorColor   = new Color(display, 198, 40, 40); // Red
         neutralColor = new Color(display, 97, 97, 97);  // Gray
     }
 
     private void initializeStores() {
-        final var stateLocation = OsgifxWorkspaceUtil.getStateLocation();
-        final var storeFile     = new File(stateLocation, "connections.json");
+        final File stateLocation = OsgifxWorkspaceUtil.getStateLocation();
+        final File storeFile     = new File(stateLocation, "connections.json");
 
         profileStore = new ConnectionProfileStore(storeFile);
         configWriter = new VolatileConfigWriter(stateLocation);
@@ -207,10 +210,10 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
     @Override
     protected Control createDialogArea(final Composite parent) {
-        final var container = (Composite) super.createDialogArea(parent);
+        final Composite container = (Composite) super.createDialogArea(parent);
         resourceManager = new LocalResourceManager(JFaceResources.getResources(), getShell());
 
-        final var mainComposite = new Composite(container, SWT.NONE);
+        final Composite mainComposite = new Composite(container, SWT.NONE);
         mainComposite.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
         mainComposite.setLayout(GridLayoutFactory.swtDefaults().numColumns(2).equalWidth(false).margins(MARGIN, MARGIN)
                 .spacing(SPACING, SPACING).create());
@@ -222,18 +225,18 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private void createProfileListSection(final Composite parent) {
-        final var leftPanel = new Composite(parent, SWT.NONE);
+        final Composite leftPanel = new Composite(parent, SWT.NONE);
         leftPanel.setLayoutData(GridDataFactory.fillDefaults().grab(false, true).hint(220, SWT.DEFAULT).create());
         leftPanel.setLayout(GridLayoutFactory.swtDefaults().spacing(0, SPACING).create());
 
         // Header
-        final var headerLabel = new Label(leftPanel, SWT.NONE);
+        final Label headerLabel = new Label(leftPanel, SWT.NONE);
         headerLabel.setText("Connection Profiles");
         headerLabel.setFont(headerFont);
         headerLabel.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
         // Separator
-        final var separator = new Label(leftPanel, SWT.SEPARATOR | SWT.HORIZONTAL);
+        final Label separator = new Label(leftPanel, SWT.SEPARATOR | SWT.HORIZONTAL);
         separator.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
         // Profile list
@@ -241,17 +244,17 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         profileList.setContentProvider(ArrayContentProvider.getInstance());
         profileList.setLabelProvider(new ConnectionProfileLabelProvider());
 
-        final var table = profileList.getTable();
+        final Table table = profileList.getTable();
         table.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).create());
         new TableColumn(table, SWT.NONE).setWidth(200);
 
         profileList.addSelectionChangedListener(new ProfileSelectionListener());
 
         // ToolBar for actions
-        final var toolBar = new ToolBar(leftPanel, SWT.FLAT | SWT.RIGHT);
+        final ToolBar toolBar = new ToolBar(leftPanel, SWT.FLAT | SWT.RIGHT);
         toolBar.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
-        final var sharedImages = PlatformUI.getWorkbench().getSharedImages();
+        final ISharedImages sharedImages = PlatformUI.getWorkbench().getSharedImages();
 
         addItem = new ToolItem(toolBar, SWT.PUSH);
         addItem.setImage(sharedImages.getImage(ISharedImages.IMG_OBJ_ADD));
@@ -275,11 +278,11 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         rightPanel.setLayout(GridLayoutFactory.swtDefaults().spacing(0, SPACING).create());
 
         // Header with status
-        final var headerComposite = new Composite(rightPanel, SWT.NONE);
+        final Composite headerComposite = new Composite(rightPanel, SWT.NONE);
         headerComposite.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
         headerComposite.setLayout(GridLayoutFactory.swtDefaults().numColumns(2).equalWidth(false).create());
 
-        final var detailsHeader = new Label(headerComposite, SWT.NONE);
+        final Label detailsHeader = new Label(headerComposite, SWT.NONE);
         detailsHeader.setText("Connection Details");
         detailsHeader.setFont(headerFont);
         detailsHeader.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
@@ -289,11 +292,11 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         statusLabel.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).align(SWT.END, SWT.CENTER).create());
 
         // Separator
-        final var separator = new Label(rightPanel, SWT.SEPARATOR | SWT.HORIZONTAL);
+        final Label separator = new Label(rightPanel, SWT.SEPARATOR | SWT.HORIZONTAL);
         separator.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
         // Profile name field
-        final var nameComposite = new Composite(rightPanel, SWT.NONE);
+        final Composite nameComposite = new Composite(rightPanel, SWT.NONE);
         nameComposite.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
         nameComposite.setLayout(
                 GridLayoutFactory.swtDefaults().numColumns(2).equalWidth(false).spacing(SPACING, 0).create());
@@ -322,21 +325,21 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         // SOCKET Tab
         socketTab = new CTabItem(tabFolder, SWT.NONE);
         socketTab.setText("Socket");
-        final var socketDescriptor = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
+        final ImageDescriptor socketDescriptor = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
                 "icons/socket_connection.png");
         socketTab.setImage(resourceManager.createImage(socketDescriptor));
 
-        final var socketComposite = createSocketTabContent(tabFolder);
+        final Composite socketComposite = createSocketTabContent(tabFolder);
         socketTab.setControl(socketComposite);
 
         // MQTT Tab
         mqttTab = new CTabItem(tabFolder, SWT.NONE);
         mqttTab.setText("MQTT");
-        final var mqttDescriptor = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
+        final ImageDescriptor mqttDescriptor = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
                 "icons/mqtt_connection.png");
         mqttTab.setImage(resourceManager.createImage(mqttDescriptor));
 
-        final var mqttComposite = createMqttTabContent(tabFolder);
+        final Composite mqttComposite = createMqttTabContent(tabFolder);
         mqttTab.setControl(mqttComposite);
 
         tabFolder.setSelection(0);
@@ -344,7 +347,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
             @Override
             public void widgetSelected(final SelectionEvent e) {
                 if (selectedProfile != null) {
-                    final var type = tabFolder.getSelection() == socketTab ? "SOCKET" : "MQTT";
+                    final String type = tabFolder.getSelection() == socketTab ? "SOCKET" : "MQTT";
                     // Only update and refresh if type actually changed and it's a new profile
                     if (!type.equals(selectedProfile.type) && selectedProfile == newlyCreatedProfile) {
                         selectedProfile.type = type;
@@ -363,11 +366,11 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private Composite createSocketTabContent(final CTabFolder parent) {
-        final var scrolled = new ScrolledComposite(parent, SWT.V_SCROLL);
+        final ScrolledComposite scrolled = new ScrolledComposite(parent, SWT.V_SCROLL);
         scrolled.setExpandHorizontal(true);
         scrolled.setExpandVertical(true);
 
-        final var composite = new Composite(scrolled, SWT.NONE);
+        final Composite composite = new Composite(scrolled, SWT.NONE);
         composite.setLayout(GridLayoutFactory.swtDefaults().numColumns(2).equalWidth(false).margins(MARGIN, MARGIN)
                 .spacing(SPACING, 8).create());
 
@@ -392,7 +395,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         passwordField = createFormPassword(composite);
 
         createFormLabel(composite, "Truststore Path:");
-        final var truststoreComposite = new Composite(composite, SWT.NONE);
+        final Composite truststoreComposite = new Composite(composite, SWT.NONE);
         truststoreComposite.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
         truststoreComposite
                 .setLayout(GridLayoutFactory.fillDefaults().numColumns(2).equalWidth(false).spacing(5, 0).create());
@@ -400,7 +403,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         truststorePathField = new Text(truststoreComposite, SWT.BORDER);
         truststorePathField.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
-        final var browseButton = new Button(truststoreComposite, SWT.PUSH);
+        final Button browseButton = new Button(truststoreComposite, SWT.PUSH);
         browseButton.setText("Browse...");
         browseButton.addListener(SWT.Selection, e -> browseTruststore());
 
@@ -419,11 +422,11 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private Composite createMqttTabContent(final CTabFolder parent) {
-        final var scrolled = new ScrolledComposite(parent, SWT.V_SCROLL);
+        final ScrolledComposite scrolled = new ScrolledComposite(parent, SWT.V_SCROLL);
         scrolled.setExpandHorizontal(true);
         scrolled.setExpandVertical(true);
 
-        final var composite = new Composite(scrolled, SWT.NONE);
+        final Composite composite = new Composite(scrolled, SWT.NONE);
         composite.setLayout(GridLayoutFactory.swtDefaults().numColumns(2).equalWidth(false).margins(MARGIN, MARGIN)
                 .spacing(SPACING, 8).create());
 
@@ -498,17 +501,17 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private void createSectionHeader(final Composite parent, final String title, final int columns) {
-        final var header = new Label(parent, SWT.NONE);
+        final Label header = new Label(parent, SWT.NONE);
         header.setText(title);
         header.setFont(boldFont);
         header.setLayoutData(GridDataFactory.fillDefaults().span(columns, 1).grab(true, false).indent(0, 10).create());
 
-        final var separator = new Label(parent, SWT.SEPARATOR | SWT.HORIZONTAL);
+        final Label separator = new Label(parent, SWT.SEPARATOR | SWT.HORIZONTAL);
         separator.setLayoutData(GridDataFactory.fillDefaults().span(columns, 1).grab(true, false).create());
     }
 
     private void addValidation(final Text text, final String message) {
-        final var decoration = new ControlDecoration(text, SWT.TOP | SWT.LEFT);
+        final ControlDecoration decoration = new ControlDecoration(text, SWT.TOP | SWT.LEFT);
         decoration.setDescriptionText(message);
         decoration.setImage(
                 FieldDecorationRegistry.getDefault().getFieldDecoration(FieldDecorationRegistry.DEC_ERROR).getImage());
@@ -520,7 +523,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private void validateFields() {
-        var isValid = true;
+        boolean isValid = true;
 
         // Common validation
         if (nameField.getText().trim().isEmpty()) {
@@ -541,8 +544,8 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
         // Update decorations
         for (final Map.Entry<Control, ControlDecoration> entry : decorations.entrySet()) {
-            final var control    = entry.getKey();
-            final var decoration = entry.getValue();
+            final Control           control    = entry.getKey();
+            final ControlDecoration decoration = entry.getValue();
             if (control instanceof Text) {
                 if (((Text) control).getText().trim().isEmpty()) {
                     decoration.show();
@@ -555,27 +558,27 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         if (connectButton != null && !connectButton.isDisposed()) {
             connectButton.setEnabled(isValid);
         }
-        final var okButton = getButton(OK);
+        final Button okButton = getButton(OK);
         if (okButton != null && !okButton.isDisposed()) {
             okButton.setEnabled(isValid);
         }
     }
 
     private void updatePanelState() {
-        final var isSelection = selectedProfile != null;
+        final boolean isSelection = selectedProfile != null;
         setEnabledRecursive(rightPanel, isSelection);
         duplicateItem.setEnabled(isSelection);
         removeItem.setEnabled(isSelection);
 
         // Only allow tab switching for newly created profiles
-        final var isNew = selectedProfile != null && selectedProfile == newlyCreatedProfile;
+        final boolean isNew = selectedProfile != null && selectedProfile == newlyCreatedProfile;
         tabFolder.setEnabled(isNew);
         if (!isSelection) {
             decorations.values().forEach(ControlDecoration::hide);
             if (connectButton != null && !connectButton.isDisposed()) {
                 connectButton.setEnabled(false);
             }
-            final var okButton = getButton(OK);
+            final Button okButton = getButton(OK);
             if (okButton != null && !okButton.isDisposed()) {
                 okButton.setEnabled(false);
             }
@@ -593,27 +596,27 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private void createFormLabel(final Composite parent, final String text) {
-        final var label = new Label(parent, SWT.NONE);
+        final Label label = new Label(parent, SWT.NONE);
         label.setText(text);
         label.setLayoutData(
                 GridDataFactory.swtDefaults().hint(LABEL_WIDTH, SWT.DEFAULT).align(SWT.END, SWT.CENTER).create());
     }
 
     private Text createFormText(final Composite parent, final String defaultValue) {
-        final var text = new Text(parent, SWT.BORDER | SWT.SINGLE);
+        final Text text = new Text(parent, SWT.BORDER | SWT.SINGLE);
         text.setText(defaultValue);
         text.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).hint(200, SWT.DEFAULT).create());
         return text;
     }
 
     private Text createFormPassword(final Composite parent) {
-        final var text = new Text(parent, SWT.BORDER | SWT.SINGLE | SWT.PASSWORD);
+        final Text text = new Text(parent, SWT.BORDER | SWT.SINGLE | SWT.PASSWORD);
         text.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).hint(200, SWT.DEFAULT).create());
         return text;
     }
 
     private Spinner createFormSpinner(final Composite parent, final int min, final int max, final int value) {
-        final var spinner = new Spinner(parent, SWT.BORDER);
+        final Spinner spinner = new Spinner(parent, SWT.BORDER);
         spinner.setMinimum(min);
         spinner.setMaximum(max);
         spinner.setSelection(value);
@@ -622,7 +625,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private Button createConnectButton(final Composite parent) {
-        final var button = new Button(parent, SWT.PUSH);
+        final Button button = new Button(parent, SWT.PUSH);
         button.setText("  \u25B6  Connect  ");
         button.setFont(boldFont);
         button.addListener(SWT.Selection, e -> connect());
@@ -630,7 +633,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private void addProfile() {
-        final var profile = new ConnectionProfile("New Connection", "SOCKET");
+        final ConnectionProfile profile = new ConnectionProfile("New Connection", "SOCKET");
         newlyCreatedProfile = profile;
         profiles.add(profile);
         profileStore.add(profile);
@@ -669,9 +672,9 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private void browseTruststore() {
-        final var dialog = new FileDialog(getShell(), SWT.OPEN);
+        final FileDialog dialog = new FileDialog(getShell(), SWT.OPEN);
         dialog.setFilterExtensions(new String[] { "*.jks", "*.p12", "*.*" });
-        final var path = dialog.open();
+        final String path = dialog.open();
         if (path != null) {
             truststorePathField.setText(path);
         }
@@ -684,83 +687,96 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
             return;
         }
 
-        final var profileToConnect = selectedProfile;
-        final var job              = new Job("Launching OSGi.fx: " + profileToConnect.name) {
-                                       @Override
-                                       protected IStatus run(final IProgressMonitor monitor) {
-                                           try {
-                                               final var zuluDownloader = new AzulZuluDownloader();
-                                               if (!zuluDownloader.isRuntimeAvailable()) {
-                                                   zuluDownloader.schedule();
-                                                   zuluDownloader.join();
-                                                   final var result = zuluDownloader.getResult();
-                                                   if (result != null && !result.isOK()) {
-                                                       throw new Exception(result.getMessage());
-                                                   }
-                                               }
+        final ConnectionProfile profileToConnect = selectedProfile;
+        final Job               job              = new Job("Launching OSGi.fx: " + profileToConnect.name) {
+                                                     @Override
+                                                     protected IStatus run(final IProgressMonitor monitor) {
+                                                         try {
+                                                             final AzulZuluDownloader zuluDownloader = new AzulZuluDownloader();
+                                                             if (!zuluDownloader.isRuntimeAvailable()) {
+                                                                 zuluDownloader.schedule();
+                                                                 zuluDownloader.join();
+                                                                 final IStatus result = zuluDownloader.getResult();
+                                                                 if (result != null && !result.isOK()) {
+                                                                     throw new Exception(result.getMessage());
+                                                                 }
+                                                             }
 
-                                               final var scriptDownloader = new RunOsgiFxDownloader();
-                                               if (!scriptDownloader.isScriptAvailable()) {
-                                                   scriptDownloader.download();
-                                               }
+                                                             final RunOsgiFxDownloader scriptDownloader = new RunOsgiFxDownloader();
+                                                             if (!scriptDownloader.isScriptAvailable()) {
+                                                                 scriptDownloader.download();
+                                                             }
 
-                                               final Path configPath = configWriter
-                                                       .writeHeadlessConfig(profileToConnect);
+                                                             final Path configPath = configWriter
+                                                                     .writeHeadlessConfig(profileToConnect);
 
-                                               // Get preferences
-                                               final var preferences = OsgifxWorkspaceUtil.getPreferenceStore();
-                                               final var useLocal    = preferences.getBoolean(USE_LOCAL_JAR);
-                                               final var localJar    = preferences.getString(OSGIFX_LOCAL_JAR);
-                                               final var gav         = preferences.getString(OSGIFX_GAV);
+                                                             // Get preferences
+                                                             final IPreferenceStore preferences = OsgifxWorkspaceUtil
+                                                                     .getPreferenceStore();
+                                                             final boolean          useLocal    = preferences
+                                                                     .getBoolean(USE_LOCAL_JAR);
+                                                             final String           localJar    = preferences
+                                                                     .getString(OSGIFX_LOCAL_JAR);
+                                                             final String           gav         = preferences
+                                                                     .getString(OSGIFX_GAV);
 
-                                               final var launcher = new OsgifxProcessLauncher(profileToConnect,
-                                                                                              configPath,
-                                                                                              zuluDownloader
-                                                                                                      .getJavaExecutablePath(),
-                                                                                              scriptDownloader
-                                                                                                      .getScriptPath(),
-                                                                                              gav, useLocal ? localJar
-                                                                                                      : null);
+                                                             final OsgifxProcessLauncher launcher = new OsgifxProcessLauncher(profileToConnect,
+                                                                                                                              configPath,
+                                                                                                                              zuluDownloader
+                                                                                                                                      .getJavaExecutablePath(),
+                                                                                                                              scriptDownloader
+                                                                                                                                      .getScriptPath(),
+                                                                                                                              gav,
+                                                                                                                              useLocal ? localJar
+                                                                                                                                      : null);
 
-                                               launcher.schedule();
-                                               launcher.join();                                                                                     // Wait
-                                                                                                                                                    // for
-                                                                                                                                                    // verification
-                                                                                                                                                    // loop
+                                                             launcher.schedule();
+                                                             launcher.join();                                                                                  // Wait
+                                                                                                                                                               // for
+                                                                                                                                                               // verification
+                                                                                                                                                               // loop
 
-                                               final var launchStatus = launcher.getResult();
+                                                             final IStatus launchStatus = launcher.getResult();
 
-                                               if (launchStatus.isOK()) {
-                                                   Display.getDefault().asyncExec(() -> {
-                                                                                  profileToConnect.lastConnected = Instant.now().toString();
-                                                                                  profileToConnect.lastStatus = "SUCCESS";
-                                                                                  profileStore.update(profileToConnect);
-                                                                                  close();
-                                                                              });
-                                               } else {
-                                                   throw new Exception(launchStatus.getMessage());
-                                               }
+                                                             if (launchStatus.isOK()) {
+                                                                 Display.getDefault().asyncExec(() -> {
+                                                                                                              profileToConnect.lastConnected = Instant.now().toString();
+                                                                                                              profileToConnect.lastStatus = "SUCCESS";
+                                                                                                              profileStore
+                                                                                                                      .update(profileToConnect);
+                                                                                                              close();
+                                                                                                          });
+                                                             } else {
+                                                                 throw new Exception(launchStatus.getMessage());
+                                                             }
 
-                                               return Status.OK_STATUS;
-                                           } catch (final Exception e) {
-                                               Display.getDefault().asyncExec(() -> {
-                                                                              profileToConnect.lastStatus = "FAILURE";
-                                                                              profileStore.update(profileToConnect);
-                                                                              final var logFile = OsgifxProcessLauncher
-                                                                                      .getLogFile(profileToConnect.id);
-                                                                              var msg = "Failed to launch OSGi.fx. " + e.getMessage();
-                                                                              if (logFile != null
-                                                                                      && Files.exists(logFile)) {
-                                                                                  msg += "\n\nLog file created at: "
-                                                                                          + logFile.toAbsolutePath();
-                                                                              }
-                                                                              MessageDialog.openError(getShell(),
-                                                                                      "Connection Error", msg);
-                                                                          });
-                                               return Status.CANCEL_STATUS;
-                                           }
-                                       }
-                                   };
+                                                             return Status.OK_STATUS;
+                                                         } catch (final Exception e) {
+                                                             Display.getDefault().asyncExec(() -> {
+                                                                                                          profileToConnect.lastStatus = "FAILURE";
+                                                                                                          profileStore
+                                                                                                                  .update(profileToConnect);
+                                                                                                          final Path logFile = OsgifxProcessLauncher.getLogFile(
+                                                                                                                  profileToConnect.id);
+                                                                                                          String msg = "Failed to launch OSGi.fx. " + e
+                                                                                                                  .getMessage();
+                                                                                                          if (logFile != null
+                                                                                                                  && Files.exists(
+                                                                                                                          logFile)) {
+                                                                                                              msg += "\n\nLog file created at: "
+                                                                                                                      + logFile
+                                                                                                                              .toAbsolutePath();
+                                                                                                          }
+                                                                                                          MessageDialog
+                                                                                                                  .openError(
+                                                                                                                          getShell(),
+                                                                                                                          "Connection Error",
+                                                                                                                          msg);
+                                                                                                      });
+                                                             return Status.CANCEL_STATUS;
+                                                         }
+                                                     }
+                                                 };
         job.setUser(true);
         job.schedule();
     }
@@ -851,8 +867,8 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         // Update last connected time
         if (selectedProfile.lastConnected != null) {
             try {
-                final var instant   = Instant.parse(selectedProfile.lastConnected);
-                final var formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                final Instant           instant   = Instant.parse(selectedProfile.lastConnected);
+                final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
                         .withZone(ZoneId.systemDefault());
                 lastConnectedLabel.setText("Last connected: " + formatter.format(instant));
             } catch (final Exception e) {
@@ -868,7 +884,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         public void selectionChanged(final SelectionChangedEvent event) {
             saveCurrentProfile();
 
-            final var selection = (StructuredSelection) event.getSelection();
+            final StructuredSelection selection = (StructuredSelection) event.getSelection();
             selectedProfile = (ConnectionProfile) selection.getFirstElement();
 
             updatePanelState();
@@ -928,8 +944,8 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         @Override
         public String getText(final Object element) {
             if (element instanceof ConnectionProfile) {
-                final var profile = (ConnectionProfile) element;
-                final var icon    = getStatusIcon(profile.lastStatus);
+                final ConnectionProfile profile = (ConnectionProfile) element;
+                final String            icon    = getStatusIcon(profile.lastStatus);
                 return icon + " " + profile.name;
             }
             return super.getText(element);
@@ -938,12 +954,12 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         @Override
         public Image getImage(final Object element) {
             if (element instanceof ConnectionProfile) {
-                final var profile    = (ConnectionProfile) element;
-                final var type       = profile.type;
-                final var iconPath   = "MQTT".equals(type) ? "icons/mqtt_connection.png"
+                final ConnectionProfile profile    = (ConnectionProfile) element;
+                final String            type       = profile.type;
+                final String            iconPath   = "MQTT".equals(type) ? "icons/mqtt_connection.png"
                         : "icons/socket_connection.png";
-                final var descriptor = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
-                        iconPath);
+                final ImageDescriptor   descriptor = AbstractUIPlugin
+                        .imageDescriptorFromPlugin("com.osgifx.eclipse.plugin", iconPath);
                 return resourceManager.createImage(descriptor);
             }
             return super.getImage(element);

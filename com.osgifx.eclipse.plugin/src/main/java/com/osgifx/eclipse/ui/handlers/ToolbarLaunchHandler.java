@@ -21,6 +21,7 @@ import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.handlers.HandlerUtil;
+import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 
 import com.osgifx.eclipse.ui.dialogs.ConnectionManagerDialog;
@@ -31,13 +32,13 @@ public final class ToolbarLaunchHandler extends AbstractHandler {
     public Object execute(final ExecutionEvent event) throws ExecutionException {
         try {
             // Ensure bundle is activated by accessing the activator
-            final var bundleContext = FrameworkUtil.getBundle(getClass()).getBundleContext();
+            final BundleContext bundleContext = FrameworkUtil.getBundle(getClass()).getBundleContext();
             if (bundleContext == null) {
                 throw new IllegalStateException("Bundle not activated. Please restart Eclipse.");
             }
 
-            final Shell shell  = HandlerUtil.getActiveShell(event);
-            final var   dialog = new ConnectionManagerDialog(shell);
+            final Shell                   shell  = HandlerUtil.getActiveShell(event);
+            final ConnectionManagerDialog dialog = new ConnectionManagerDialog(shell);
             dialog.open();
         } catch (final Exception e) {
             final Shell shell = HandlerUtil.getActiveShell(event);
