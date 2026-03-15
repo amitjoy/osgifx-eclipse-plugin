@@ -80,6 +80,35 @@ Access the configuration via **Window > Preferences > OSGi.fx**.
     - Select "Use local OSGi.fx JAR" to point to a specific version on your disk.
     - Or provide a "Maven OSGi.fx Version (GAV)" (e.g., `com.osgifx:com.osgifx.console.application:1.0.0`) to fetch it automatically.
 
+## 🚀 Releasing
+
+The project uses a dedicated release branch strategy for deployment. Merging to or pushing a branch matching `release/**` will trigger the deployment of the Eclipse Update Site to GitHub Pages.
+
+### Release Automation Script
+
+A script is provided to automate the creation of release branches:
+
+```bash
+./scripts/release.sh <version>
+```
+
+**Example:**
+```bash
+./scripts/release.sh 1.0.0
+```
+
+This script will:
+1. Validate the version format.
+2. Ensure you are on the `main` branch.
+3. Pull latest changes from `origin/main`.
+4. Create a new branch `release/<version>`.
+5. **Automate versioning**: Use Maven Tycho to update all project versions to match the release version.
+6. Commit the version bump and push the branch to `origin`, triggering the deployment workflow.
+7. Switch back to `main`.
+
+> [!IMPORTANT]
+> The deployment workflow requires `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`, and `GPG_KEY_ID` to be configured as GitHub Actions Secrets.
+
 ## 🔧 Development
 
 The projects are fully Eclipse IDE compliant. To import:

@@ -1,0 +1,51 @@
+name: Deploy Eclipse Update Site
+
+on:
+  push:
+    branches:
+      - 'release/**' # Pipeline triggers on pushes/merges to release/ branches
+  workflow_dispatch: # Allows you to manually trigger a build from the GitHub UI if needed
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Import GPG Key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Build and Sign with Maven Tycho
+        run: |
+          mvn clean verify -B \
+            -Dgpg.passphrase="${{ secrets.GPG_PASSPHRASE }}" \
+            -Dgpg.keyname="${{ secrets.GPG_KEY_ID }}"
+            
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload P2 Repository Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Tycho outputs the update site here
+          path: 'org.osgifx.eclipse.repository/target/repository/'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
