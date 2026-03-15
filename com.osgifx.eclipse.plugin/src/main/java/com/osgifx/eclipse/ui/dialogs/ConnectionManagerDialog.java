@@ -731,10 +731,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                                                                                                                                       : null);
 
                                                              launcher.schedule();
-                                                             launcher.join();                                                                                  // Wait
-                                                                                                                                                               // for
-                                                                                                                                                               // verification
-                                                                                                                                                               // loop
+                                                             launcher.join();
 
                                                              final IStatus launchStatus = launcher.getResult();
 

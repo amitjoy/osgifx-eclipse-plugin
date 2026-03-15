@@ -23,6 +23,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -85,8 +86,10 @@ public final class ConnectionProfileStore {
         final var profiles = new ArrayList<>(loadAll());
         find(profiles, id).ifPresent(original -> {
             final var copy = gson.fromJson(gson.toJson(original), ConnectionProfile.class);
-            copy.id   = java.util.UUID.randomUUID().toString();
-            copy.name = original.name + " (Copy)";
+            copy.id            = UUID.randomUUID().toString();
+            copy.name          = original.name + " (Copy)";
+            copy.lastConnected = null;
+            copy.lastStatus    = null;
             profiles.add(copy);
             saveAll(profiles);
         });
