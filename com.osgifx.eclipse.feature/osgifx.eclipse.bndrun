@@ -1,0 +1,25 @@
+# OSGi.fx Eclipse Launcher Feature Definition
+# This bndrun defines the content of the P2 repository
+
+Bundle-SymbolicName: com.osgifx.eclipse.feature
+Bundle-Name: OSGi.fx Eclipse Launcher
+Bundle-Description: Eclipse IDE integration for OSGi.fx diagnostic tool. Provides connection profile management and one-click launch of OSGi.fx diagnostic tool.
+Bundle-Version: 1.0.0
+Bundle-Vendor: OSGi.fx
+Bundle-License: Apache-2.0
+Bundle-DocURL: https://www.osgifx.com
+Bundle-Category: osgifx
+
+# Feature categories
+-categories: \
+	osgifx; \
+	label=OSGi.fx; \
+	description=OSGi diagnostic and management tools for Eclipse IDE
+
+# Bundles to include in the feature
+-runbundles: \
+	com.osgifx.eclipse.plugin;version=latest
+
+# Requirements
+Require-Capability: \
+	osgi.ee;filter:="(&(osgi.ee=JavaSE)(version>=17))"

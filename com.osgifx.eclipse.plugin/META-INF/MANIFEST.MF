@@ -1,0 +1,63 @@
+Manifest-Version: 1.0
+Automatic-Module-Name: com.osgifx.eclipse.plugin
+Bundle-ActivationPolicy: lazy
+Bundle-Activator: com.osgifx.eclipse.internal.Activator
+Bundle-Category: osgifx
+Bundle-ContactAddress: admin@amitinside.com
+Bundle-Copyright: Copyright (c) Amit Kumar Mondal 2026. All Right
+ s Reserved.
+Bundle-Description: Eclipse IDE integration for OSGi.fx diagnostic too
+ l
+Bundle-Developers: amit.kumar.mondal;email="admin@amitinside.com";name
+ ="Amit Kumar Mondal";organization="Deutsche Telekom AG";organizationU
+ rl="https://www.telekom.de/";roles="architect,developer,engineer";tim
+ ezone="Europe/Berlin"
+Bundle-DocURL: https://osgifx.com
+Bundle-License: Apache-2.0
+Bundle-ManifestVersion: 2
+Bundle-Name: OSGi.fx Launcher
+Bundle-SCM: url=https://github.com/amitjoy/osgifx.git,connection=scm:g
+ it:https://github.com/amitjoy/osgifx.git,developerConnection=scm:git:
+ git@github.com/amitjoy/osgifx.git
+Bundle-SymbolicName: com.osgifx.eclipse.plugin;singleton:=true
+Bundle-UpdateLocation: https://www.jdeploy.com/~osgifx
+Bundle-Vendor: OSGi.fx
+Bundle-Version: 1.0.0.qualifier
+Bundle-RequiredExecutionEnvironment: JavaSE-17
+Git-Descriptor: e996a46ef-dirty
+Git-SHA: e996a46ef13a052b759e8bfd46d729a5188f1c69
+Import-Package: com.google.gson;version="[2.7,3)",
+ com.google.gson.reflect;version="[2.7,3)",
+ java.io,
+ java.lang,
+ java.lang.invoke,
+ java.lang.reflect,
+ java.net,
+ java.nio.file,
+ java.nio.file.attribute,
+ java.time,
+ java.time.format,
+ java.time.temporal,
+ java.util,
+ java.util.concurrent,
+ java.util.function,
+ java.util.stream,
+ java.util.zip,
+ org.apache.commons.lang;version="[2.6,3)",
+ org.eclipse.ui;ui.workbench=split,
+ org.eclipse.ui.handlers,
+ org.eclipse.ui.plugin,
+ org.eclipse.ui.preferences,
+ org.osgi.framework;version="[1.10,2)",
+ org.osgi.service.prefs;version="[1.1,2)"
+OSGifx-Version: 3.0.0 
+Private-Package: com.osgifx.eclipse.internal,com.osgifx.eclipse.intern
+ al.downloader,com.osgifx.eclipse.internal.launcher,com.osgifx.eclipse
+ .internal.preferences,com.osgifx.eclipse.internal.storage,com.osgifx.
+ eclipse.internal.util,com.osgifx.eclipse.ui.dialogs,com.osgifx.eclips
+ e.ui.handlers,icons
+Require-Bundle: org.eclipse.ui,org.eclipse.core.runtime,org.eclipse.jf
+ ace,org.eclipse.swt,org.eclipse.core.commands,org.eclipse.core.jobs,o
+ rg.eclipse.equinox.common,org.eclipse.equinox.registry,org.eclipse.eq
+ uinox.preferences
+
