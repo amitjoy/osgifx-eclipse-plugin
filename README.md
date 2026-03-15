@@ -34,12 +34,15 @@ This repository contains the Eclipse IDE integration for the [OSGi.fx](https://g
 
 ## 🛠️ Prerequisites
 
-- **Java 11** (Ensure you are using Java 11 or higher for building).
+- **Java 17** (Required for building the workspace).
 - **Maven 3.8** or higher.
+
+> [!NOTE]
+> Even though Java 17 is required for building, the generated artifacts are compatible with **Java 11**.
 
 ## 📦 Building
 
-To build the project, run the following command from the root directory:
+To build the project, ensure you are using **Java 17** and run the following command from the root directory:
 
 ```bash
 mvn clean verify -Dtycho.p2.transport=apache
