@@ -3,13 +3,10 @@ name: Deploy Eclipse Update Site
 on:
   push:
     branches:
-      - 'release/**' # Pipeline triggers on pushes/merges to release/ branches
-  workflow_dispatch: # Allows you to manually trigger a build from the GitHub UI if needed
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+      - 'release/**' # Deploys to the 'eclipse-staging' folder
+    tags:
+      - '*.*.*' # Deploys to the production 'eclipse' folder
+  workflow_dispatch: 
 
 jobs:
   build-and-deploy:
@@ -36,16 +33,54 @@ jobs:
           mvn clean verify -B \
             -Dgpg.passphrase="${{ secrets.GPG_PASSPHRASE }}" \
             -Dgpg.keyname="${{ secrets.GPG_KEY_ID }}"
-            
-      - name: Setup GitHub Pages
-        uses: actions/configure-pages@v4
 
-      - name: Upload P2 Repository Artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Determine Deployment Environment
+        id: deploy-env
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "DEST_DIR=eclipse" >> $GITHUB_ENV
+            echo "SITE_URL=https://osgifx.com/eclipse/" >> $GITHUB_ENV
+          else
+            echo "DEST_DIR=eclipse-staging" >> $GITHUB_ENV
+            echo "SITE_URL=https://osgifx.com/eclipse-staging/" >> $GITHUB_ENV
+          fi
+
+      - name: Generate Landing Page (index.html)
+        run: |
+          cat << EOF > ./org.osgifx.eclipse.repository/target/repository/index.html
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>OSGi.fx Eclipse Plugin Update Site</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 30px; border-radius: 8px; border: 1px solid #ddd; }
+              h1 { color: #1A73E8; }
+              code { background: #eee; padding: 4px 8px; border-radius: 4px; font-size: 1.1em; color: #d63384; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>OSGi.fx Eclipse Update Site</h1>
+              <p><strong>Do not download files directly from this page.</strong></p>
+              <p>To install the OSGi.fx plugin, copy the URL of this page and paste it into Eclipse:</p>
+              <ol>
+                <li>Open Eclipse IDE</li>
+                <li>Go to <strong>Help &gt; Install New Software...</strong></li>
+                <li>Click <strong>Add...</strong></li>
+                <li>Paste this exact URL: <br><br><code>${{ env.SITE_URL }}</code></li>
+              </ol>
+            </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Deploy to External GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          # Tycho outputs the update site here
-          path: 'org.osgifx.eclipse.repository/target/repository/'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          personal_token: ${{ secrets.P2_DEPLOY_PAT }}
+          external_repository: amitjoy/osgifx
+          publish_branch: gh-pages 
+          publish_dir: ./org.osgifx.eclipse.repository/target/repository
+          destination_dir: ${{ env.DEST_DIR }} 
+          keep_files: true
