@@ -54,7 +54,9 @@ import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
 import org.eclipse.swt.custom.CTabItem;
+import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.custom.ScrolledComposite;
+import org.eclipse.swt.custom.StackLayout;
 import org.eclipse.swt.events.ControlAdapter;
 import org.eclipse.swt.events.ControlEvent;
 import org.eclipse.swt.events.SelectionAdapter;
@@ -103,6 +105,9 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     // UI Components
     private TableViewer profileList;
     private Composite   rightPanel;
+    private StackLayout detailStackLayout;
+    private Composite   emptyComposite;
+    private Composite   formComposite;
     private ToolItem    addItem;
     private ToolItem    duplicateItem;
     private ToolItem    removeItem;
@@ -168,10 +173,17 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         super.create();
         initializeFonts();
         initializeColors();
+
         getShell().setText("OSGi.fx Connection Manager");
         setTitle("OSGi.fx Connection Manager");
         setMessage("Create and manage connection profiles for OSGi.fx diagnostic tool");
-        getShell().setSize(780, 680);
+
+        // Phase 1: Asset Integration & Header Branding
+        final ImageDescriptor logoDescriptor = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
+                "icons/logo_64.png");
+        setTitleImage(resourceManager.createImage(logoDescriptor));
+
+        getShell().setSize(800, 700);
         initializeStores();
         loadProfiles();
         updatePanelState();
@@ -219,13 +231,15 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         final Composite container = (Composite) super.createDialogArea(parent);
         resourceManager = new LocalResourceManager(JFaceResources.getResources(), getShell());
 
-        final Composite mainComposite = new Composite(container, SWT.NONE);
-        mainComposite.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-        mainComposite.setLayout(GridLayoutFactory.swtDefaults().numColumns(2).equalWidth(false).margins(MARGIN, MARGIN)
-                .spacing(SPACING, SPACING).create());
+        // Phase 2: Structural Layout Upgrade (SashForm master-detail)
+        final SashForm mainSash = new SashForm(container, SWT.HORIZONTAL | SWT.SMOOTH);
+        mainSash.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+        mainSash.setSashWidth(5);
 
-        createProfileListSection(mainComposite);
-        createDetailSection(mainComposite);
+        createProfileListSection(mainSash);
+        createDetailSection(mainSash);
+
+        mainSash.setWeights(new int[] { 30, 70 });
 
         return container;
     }
@@ -281,10 +295,49 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     private void createDetailSection(final Composite parent) {
         rightPanel = new Composite(parent, SWT.NONE);
         rightPanel.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).create());
-        rightPanel.setLayout(GridLayoutFactory.swtDefaults().spacing(0, SPACING).create());
+        detailStackLayout = new StackLayout();
+        rightPanel.setLayout(detailStackLayout);
+
+        createEmptyStateComposite(rightPanel);
+        createFormComposite(rightPanel);
+
+        detailStackLayout.topControl = emptyComposite;
+    }
+
+    private void createEmptyStateComposite(final Composite parent) {
+        emptyComposite = new Composite(parent, SWT.NONE);
+        emptyComposite.setLayout(GridLayoutFactory.fillDefaults().spacing(0, 20).margins(40, 40).create());
+
+        // Center container
+        final Composite centerContainer = new Composite(emptyComposite, SWT.NONE);
+        centerContainer
+                .setLayoutData(GridDataFactory.fillDefaults().grab(true, true).align(SWT.CENTER, SWT.CENTER).create());
+        centerContainer.setLayout(GridLayoutFactory.fillDefaults().spacing(0, 15).create());
+
+        // Icon
+        final Label           iconLabel      = new Label(centerContainer, SWT.CENTER);
+        final ImageDescriptor iconDescriptor = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
+                "icons/icon@2x.png");
+        final Image           iconImage      = resourceManager.createImage(iconDescriptor);
+        iconLabel.setImage(iconImage);
+        iconLabel
+                .setLayoutData(GridDataFactory.fillDefaults().grab(true, false).align(SWT.CENTER, SWT.CENTER).create());
+
+        // Text
+        final Label infoLabel = new Label(centerContainer, SWT.CENTER | SWT.WRAP);
+        infoLabel.setText("Select a profile from the left or click '+' to create a new connection.");
+        infoLabel.setFont(boldFont);
+        infoLabel.setForeground(neutralColor);
+        infoLabel.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).hint(300, SWT.DEFAULT)
+                .align(SWT.CENTER, SWT.CENTER).create());
+    }
+
+    private void createFormComposite(final Composite parent) {
+        formComposite = new Composite(parent, SWT.NONE);
+        formComposite.setLayout(GridLayoutFactory.swtDefaults().spacing(0, SPACING).create());
 
         // Header with status
-        final Composite headerComposite = new Composite(rightPanel, SWT.NONE);
+        final Composite headerComposite = new Composite(formComposite, SWT.NONE);
         headerComposite.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
         headerComposite.setLayout(GridLayoutFactory.swtDefaults().numColumns(2).equalWidth(false).create());
 
@@ -298,11 +351,11 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         statusLabel.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).align(SWT.END, SWT.CENTER).create());
 
         // Separator
-        final Label separator = new Label(rightPanel, SWT.SEPARATOR | SWT.HORIZONTAL);
+        final Label separator = new Label(formComposite, SWT.SEPARATOR | SWT.HORIZONTAL);
         separator.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
         // Profile name field
-        final Composite nameComposite = new Composite(rightPanel, SWT.NONE);
+        final Composite nameComposite = new Composite(formComposite, SWT.NONE);
         nameComposite.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
         nameComposite.setLayout(
                 GridLayoutFactory.swtDefaults().numColumns(2).equalWidth(false).spacing(SPACING, 0).create());
@@ -322,14 +375,15 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         addValidation(nameField, "Profile name is required");
 
         // Last connected info
-        lastConnectedLabel = new Label(rightPanel, SWT.NONE);
+        lastConnectedLabel = new Label(formComposite, SWT.NONE);
         lastConnectedLabel.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
         lastConnectedLabel.setForeground(neutralColor);
 
         // Tab folder for SOCKET/MQTT
-        tabFolder = new CTabFolder(rightPanel, SWT.BORDER | SWT.FLAT | SWT.TOP);
+        tabFolder = new CTabFolder(formComposite, SWT.BORDER | SWT.FLAT | SWT.TOP);
         tabFolder.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).create());
-        tabFolder.setSimple(false);
+        tabFolder.setSimple(true);
+        tabFolder.setBorderVisible(false);
         tabFolder.setUnselectedCloseVisible(false);
 
         // SOCKET Tab
@@ -380,7 +434,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         });
 
         // Action Buttons Composite (Save & Connect side-by-side)
-        final Composite actionButtonsComposite = new Composite(rightPanel, SWT.NONE);
+        final Composite actionButtonsComposite = new Composite(formComposite, SWT.NONE);
         actionButtonsComposite
                 .setLayoutData(GridDataFactory.fillDefaults().grab(true, false).indent(0, SPACING).create());
         actionButtonsComposite.setLayout(GridLayoutFactory.fillDefaults().numColumns(2).equalWidth(true).create());
@@ -418,7 +472,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         createSectionHeader(composite, "Connection Settings", 2);
 
         createFormLabel(composite, "Host:");
-        hostField = createFormText(composite, "localhost");
+        hostField = createFormText(composite, "e.g. localhost");
         addValidation(hostField, "Host is required");
 
         createFormLabel(composite, "Port:");
@@ -445,6 +499,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                 .setLayout(GridLayoutFactory.fillDefaults().numColumns(2).equalWidth(false).spacing(5, 0).create());
 
         truststorePathField = new Text(truststoreComposite, SWT.BORDER);
+        truststorePathField.setMessage("e.g. /path/to/truststore.jks");
         truststorePathField.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
 
         final Button browseButton = new Button(truststoreComposite, SWT.PUSH);
@@ -481,7 +536,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         createSectionHeader(composite, "Broker Settings", 2);
 
         createFormLabel(composite, "Broker Server:");
-        serverField = createFormText(composite, "broker.hivemq.com");
+        serverField = createFormText(composite, "e.g. broker.hivemq.com");
         addValidation(serverField, "Broker server is required");
 
         createFormLabel(composite, "Broker Port:");
@@ -492,14 +547,14 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         mqttTimeoutSpinner.setIncrement(1000);
 
         createFormLabel(composite, "Client ID:");
-        clientIdField = createFormText(composite, "osgifx-client");
+        clientIdField = createFormText(composite, "e.g. osgifx-client");
         addValidation(clientIdField, "Client ID is required");
 
         // Authentication
         createSectionHeader(composite, "Authentication", 2);
 
         createFormLabel(composite, "Username:");
-        usernameField = createFormText(composite, "");
+        usernameField = createFormText(composite, "e.g. user123");
 
         createFormLabel(composite, "Password:");
         mqttPasswordField = createFormPassword(composite);
@@ -508,33 +563,33 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         createSectionHeader(composite, "Topic Configuration", 2);
 
         createFormLabel(composite, "Publish Topic:");
-        pubTopicField = createFormText(composite, "osgifx/pub");
+        pubTopicField = createFormText(composite, "e.g. osgifx/pub");
         addValidation(pubTopicField, "Publish topic is required");
 
         createFormLabel(composite, "Subscribe Topic:");
-        subTopicField = createFormText(composite, "osgifx/sub");
+        subTopicField = createFormText(composite, "e.g. osgifx/sub");
         addValidation(subTopicField, "Subscribe topic is required");
 
         createFormLabel(composite, "LWT Topic:");
-        lwtTopicField = createFormText(composite, "osgifx/lwt");
+        lwtTopicField = createFormText(composite, "e.g. osgifx/lwt");
 
         // OAuth2
         createSectionHeader(composite, "OAuth2 Token Configuration (Optional)", 2);
 
         createFormLabel(composite, "Auth Server URL:");
-        authServerUrlField = createFormText(composite, "");
+        authServerUrlField = createFormText(composite, "e.g. https://auth.example.com");
 
         createFormLabel(composite, "Client ID:");
-        oauthClientIdField = createFormText(composite, "");
+        oauthClientIdField = createFormText(composite, "e.g. my-client-id");
 
         createFormLabel(composite, "Client Secret:");
         clientSecretField = createFormPassword(composite);
 
         createFormLabel(composite, "Audience:");
-        audienceField = createFormText(composite, "");
+        audienceField = createFormText(composite, "e.g. https://api.example.com");
 
         createFormLabel(composite, "Scope:");
-        scopeField = createFormText(composite, "");
+        scopeField = createFormText(composite, "e.g. openid profile email");
 
         final List<Control> mqttControls = List.of(serverField, mqttPortSpinner, mqttTimeoutSpinner, clientIdField,
                 usernameField, mqttPasswordField, pubTopicField, subTopicField, lwtTopicField, authServerUrlField,
@@ -619,7 +674,13 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
     private void updatePanelState() {
         final boolean isSelection = selectedProfile != null;
-        setEnabledRecursive(rightPanel, isSelection);
+
+        // Phase 4: Toggle the StackLayout
+        if (detailStackLayout != null) {
+            detailStackLayout.topControl = isSelection ? formComposite : emptyComposite;
+            rightPanel.layout();
+        }
+
         duplicateItem.setEnabled(isSelection);
         removeItem.setEnabled(isSelection);
 
@@ -628,19 +689,23 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
             if (connectButton != null && !connectButton.isDisposed()) {
                 connectButton.setEnabled(false);
             }
+            if (saveButton != null && !saveButton.isDisposed()) {
+                saveButton.setEnabled(false);
+            }
             final Button okButton = getButton(OK);
             if (okButton != null && !okButton.isDisposed()) {
                 okButton.setEnabled(false);
             }
-        }
-    }
-
-    private void setEnabledRecursive(final Composite composite, final boolean enabled) {
-        composite.setEnabled(enabled);
-        for (final Control child : composite.getChildren()) {
-            child.setEnabled(enabled);
-            if (child instanceof Composite) {
-                setEnabledRecursive((Composite) child, enabled);
+        } else {
+            final Button okButton = getButton(OK);
+            if (okButton != null && !okButton.isDisposed()) {
+                okButton.setEnabled(true);
+            }
+            if (connectButton != null && !connectButton.isDisposed()) {
+                connectButton.setEnabled(!isDirty);
+            }
+            if (saveButton != null && !saveButton.isDisposed()) {
+                saveButton.setEnabled(isDirty);
             }
         }
     }
@@ -652,9 +717,9 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                 GridDataFactory.swtDefaults().hint(LABEL_WIDTH, SWT.DEFAULT).align(SWT.END, SWT.CENTER).create());
     }
 
-    private Text createFormText(final Composite parent, final String defaultValue) {
+    private Text createFormText(final Composite parent, final String placeholder) {
         final Text text = new Text(parent, SWT.BORDER | SWT.SINGLE);
-        text.setText(defaultValue);
+        text.setMessage(placeholder);
         text.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).hint(200, SWT.DEFAULT).create());
         return text;
     }
@@ -1114,21 +1179,21 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
     private void clearFields() {
         nameField.setText("");
-        hostField.setText("localhost");
+        hostField.setText("");
         portSpinner.setSelection(4567);
         timeoutSpinner.setSelection(10000);
         passwordField.setText("");
         truststorePathField.setText("");
         truststorePasswordField.setText("");
-        serverField.setText("broker.hivemq.com");
+        serverField.setText("");
         mqttPortSpinner.setSelection(1883);
         mqttTimeoutSpinner.setSelection(10000);
-        clientIdField.setText("osgifx-client");
+        clientIdField.setText("");
         usernameField.setText("");
         mqttPasswordField.setText("");
-        pubTopicField.setText("osgifx/pub");
-        subTopicField.setText("osgifx/sub");
-        lwtTopicField.setText("osgifx/lwt");
+        pubTopicField.setText("");
+        subTopicField.setText("");
+        lwtTopicField.setText("");
         authServerUrlField.setText("");
         oauthClientIdField.setText("");
         clientSecretField.setText("");
@@ -1207,15 +1272,15 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
             if ("MQTT".equals(profile.type)) {
                 tabFolder.setSelection(mqttTab);
-                serverField.setText(profile.server != null ? profile.server : "broker.hivemq.com");
+                serverField.setText(profile.server != null ? profile.server : "");
                 mqttPortSpinner.setSelection(profile.mqttPort > 0 ? profile.mqttPort : 1883);
                 mqttTimeoutSpinner.setSelection(profile.mqttTimeout > 0 ? profile.mqttTimeout : 10000);
-                clientIdField.setText(profile.clientId != null ? profile.clientId : "osgifx-client");
+                clientIdField.setText(profile.clientId != null ? profile.clientId : "");
                 usernameField.setText(profile.username != null ? profile.username : "");
                 mqttPasswordField.setText(profile.mqttPassword != null ? profile.mqttPassword : "");
-                pubTopicField.setText(profile.pubTopic != null ? profile.pubTopic : "osgifx/pub");
-                subTopicField.setText(profile.subTopic != null ? profile.subTopic : "osgifx/sub");
-                lwtTopicField.setText(profile.lwtTopic != null ? profile.lwtTopic : "osgifx/lwt");
+                pubTopicField.setText(profile.pubTopic != null ? profile.pubTopic : "");
+                subTopicField.setText(profile.subTopic != null ? profile.subTopic : "");
+                lwtTopicField.setText(profile.lwtTopic != null ? profile.lwtTopic : "");
 
                 if (profile.tokenConfig != null) {
                     authServerUrlField.setText(
@@ -1235,7 +1300,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                 }
             } else {
                 tabFolder.setSelection(socketTab);
-                hostField.setText(profile.host != null ? profile.host : "localhost");
+                hostField.setText(profile.host != null ? profile.host : "");
                 portSpinner.setSelection(profile.port > 0 ? profile.port : 4567);
                 timeoutSpinner.setSelection(profile.timeout > 0 ? profile.timeout : 10000);
                 passwordField.setText(profile.password != null ? profile.password : "");
