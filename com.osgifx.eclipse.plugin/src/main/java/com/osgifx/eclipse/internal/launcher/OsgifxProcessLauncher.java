@@ -37,6 +37,12 @@ public final class OsgifxProcessLauncher extends Job {
     private static final Map<String, Long> activeProcesses = new ConcurrentHashMap<>();
     private static final Map<String, Path> activeLogs      = new ConcurrentHashMap<>();
 
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            activeProcesses.values().forEach(pid -> ProcessHandle.of(pid).ifPresent(ProcessHandle::destroy));
+        }));
+    }
+
     private final ConnectionProfile profile;
     private final Path              configPath;
     private final Path              javaExePath;
@@ -98,13 +104,6 @@ public final class OsgifxProcessLauncher extends Job {
 
             activeProcesses.put(profile.id, pid);
 
-            // Add shutdown hook
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                if (process.isAlive()) {
-                    process.destroy();
-                }
-            }));
-
             monitor.worked(30);
             monitor.subTask("Verifying startup...");
 
@@ -141,9 +140,6 @@ public final class OsgifxProcessLauncher extends Job {
         cmd.add("--source");
         cmd.add("25");
         cmd.add(scriptPath.toString());
-        if (SystemUtils.IS_OS_MAC) {
-            cmd.add("-Djdk.lang.Process.launchMechanism=FORK");
-        }
         if (localJar != null && !localJar.isBlank()) {
             cmd.add("--jar");
             cmd.add(localJar);
