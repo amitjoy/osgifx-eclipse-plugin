@@ -67,7 +67,8 @@ public final class OsgifxPreferencePage extends FieldEditorPreferencePage implem
         customJavaEditor.setFileExtensions(new String[] { "*.exe", "*" });
         addField(customJavaEditor);
 
-        new Label(parent, SWT.NONE); // Spacer
+        final var spacer = new Label(parent, SWT.NONE);
+        spacer.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
 
         useLocalJarEditor = new BooleanFieldEditor(USE_LOCAL_JAR, "Use local OSGi.fx JAR (Overwrites GAV)", parent);
         addField(useLocalJarEditor);

@@ -22,7 +22,6 @@ public interface OsgifxPreferenceConstants {
     String OSGIFX_GAV          = "osgifxGav";
     String OSGIFX_LOCAL_JAR    = "osgifxLocalJar";
     String USE_LOCAL_JAR       = "useLocalJar";
-    String DOWNLOAD_CACHE_DIR  = "downloadCacheDir";
 
     // Defaults
     boolean DEFAULT_AUTO_MANAGE = true;
