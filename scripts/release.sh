@@ -50,5 +50,19 @@ git push -u origin "$BRANCH_NAME"
 echo "Switching back to main..."
 git checkout main
 
+# --- Bump main to next snapshot ---
+read -p "Enter the next development version for main (e.g., 1.1.0-SNAPSHOT): " NEXT_VERSION
+
+if [[ -n "$NEXT_VERSION" ]]; then
+    echo "Updating main to next development version: $NEXT_VERSION..."
+    mvn org.eclipse.tycho:tycho-versions-plugin:set-version -DnewVersion="$NEXT_VERSION"
+    git commit -am "chore: start next development iteration $NEXT_VERSION" || echo "Nothing to commit."
+    git push origin main
+    echo "Success! main is now on $NEXT_VERSION"
+else
+    echo "Skipping main version bump."
+fi
+# ----------------------------------------
+
 echo "Success! Release branch $BRANCH_NAME has been created and pushed."
 echo "The deployment pipeline will now trigger automatically on GitHub."
