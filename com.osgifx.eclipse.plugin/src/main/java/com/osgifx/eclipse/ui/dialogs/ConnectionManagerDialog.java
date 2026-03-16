@@ -1318,6 +1318,17 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     }
 
     private final class ConnectionProfileLabelProvider extends LabelProvider {
+
+        private final ImageDescriptor mqttDescriptor;
+        private final ImageDescriptor socketDescriptor;
+
+        public ConnectionProfileLabelProvider() {
+            mqttDescriptor   = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
+                    "icons/mqtt_connection.png");
+            socketDescriptor = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
+                    "icons/socket_connection.png");
+        }
+
         @Override
         public String getText(final Object element) {
             if (element instanceof ConnectionProfile) {
@@ -1333,11 +1344,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         public Image getImage(final Object element) {
             if (element instanceof ConnectionProfile) {
                 final ConnectionProfile profile    = (ConnectionProfile) element;
-                final String            type       = profile.type;
-                final String            iconPath   = "MQTT".equals(type) ? "icons/mqtt_connection.png"
-                        : "icons/socket_connection.png";
-                final ImageDescriptor   descriptor = AbstractUIPlugin
-                        .imageDescriptorFromPlugin("com.osgifx.eclipse.plugin", iconPath);
+                final ImageDescriptor   descriptor = "MQTT".equals(profile.type) ? mqttDescriptor : socketDescriptor;
                 return resourceManager.createImage(descriptor);
             }
             return super.getImage(element);
