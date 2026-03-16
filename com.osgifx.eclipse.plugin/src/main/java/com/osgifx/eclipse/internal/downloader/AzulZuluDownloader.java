@@ -57,7 +57,10 @@ public final class AzulZuluDownloader extends Job {
 
     public Path getJavaExecutablePath() {
         final var runtimePath = getRuntimePath();
-        final var javaExe     = SystemUtils.IS_OS_WINDOWS ? "java.exe" : "java";
+        if (!Files.exists(runtimePath)) {
+            return null;
+        }
+        final var javaExe = SystemUtils.IS_OS_WINDOWS ? "java.exe" : "java";
 
         try (final var stream = Files.walk(runtimePath)) {
             return stream.filter(Files::isRegularFile).filter(path -> path.getFileName().toString().equals(javaExe))
@@ -91,13 +94,15 @@ public final class AzulZuluDownloader extends Job {
             monitor.subTask("Downloading runtime archive...");
             final var archiveFile = downloadArchive(downloadUrl, monitor);
 
-            monitor.subTask("Extracting runtime archive...");
-            extractArchive(archiveFile, runtimePath.toFile());
+            try {
+                monitor.subTask("Extracting runtime archive...");
+                extractArchive(archiveFile, runtimePath.toFile());
 
-            Files.deleteIfExists(archiveFile.toPath());
-
-            monitor.subTask("Validating JavaFX modules...");
-            validateJavaFx();
+                monitor.subTask("Validating JavaFX modules...");
+                validateJavaFx();
+            } finally {
+                Files.deleteIfExists(archiveFile.toPath());
+            }
 
             return Status.OK_STATUS;
         } catch (final Exception e) {
@@ -142,7 +147,10 @@ public final class AzulZuluDownloader extends Job {
         if (arch.contains("aarch64") || arch.contains("arm")) {
             return "arm";
         }
-        return "x64";
+        if (arch.contains("64")) {
+            return "x86_64"; // Safer mapping for Azul API
+        }
+        return "x86";
     }
 
     private File downloadArchive(final String url, final IProgressMonitor monitor) throws IOException {
@@ -167,6 +175,9 @@ public final class AzulZuluDownloader extends Job {
                     monitor.subTask("Downloading... " + progress + "%");
                 }
             }
+        } catch (final IOException e) {
+            Files.deleteIfExists(tempFile.toPath());
+            throw e;
         }
 
         return tempFile;
@@ -188,6 +199,12 @@ public final class AzulZuluDownloader extends Job {
                     targetFile.mkdirs();
                 } else {
                     targetFile.getParentFile().mkdirs();
+
+                    // Prevent Zip Slip Vulnerability
+                    if (!targetFile.getCanonicalPath().startsWith(targetDir.getCanonicalPath() + File.separator)) {
+                        throw new IOException("Zip entry is outside of the target dir: " + entryPath);
+                    }
+
                     Files.copy(zis, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
                     // Set executable permission on Unix-like systems for bin binaries
