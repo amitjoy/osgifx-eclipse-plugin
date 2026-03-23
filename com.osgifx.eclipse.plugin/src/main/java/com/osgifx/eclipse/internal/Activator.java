@@ -15,6 +15,7 @@
  ******************************************************************************/
 package com.osgifx.eclipse.internal;
 
+import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
@@ -55,7 +56,7 @@ public final class Activator extends AbstractUIPlugin {
 
     public static void log(final int severity, final String message, final Throwable throwable) {
         if (instance != null) {
-            instance.getLog().log(new org.eclipse.core.runtime.Status(severity, PLUGIN_ID, message, throwable));
+            instance.getLog().log(new Status(severity, PLUGIN_ID, message, throwable));
         }
     }
 }

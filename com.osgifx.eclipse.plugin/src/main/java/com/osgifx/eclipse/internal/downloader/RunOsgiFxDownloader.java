@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 import org.apache.commons.lang.SystemUtils;
 
@@ -44,7 +45,7 @@ public final class RunOsgiFxDownloader {
         scriptPath.getParent().toFile().mkdirs();
 
         try (final var is = new BufferedInputStream(new URL(SCRIPT_URL).openStream())) {
-            Files.copy(is, scriptPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(is, scriptPath, StandardCopyOption.REPLACE_EXISTING);
         }
 
         // Set executable permission on Unix-like systems

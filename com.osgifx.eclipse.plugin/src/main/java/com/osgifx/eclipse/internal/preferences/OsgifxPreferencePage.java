@@ -35,6 +35,7 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 
@@ -106,12 +107,11 @@ public final class OsgifxPreferencePage extends FieldEditorPreferencePage implem
 
         if (cacheDir.exists()) {
             deleteDirectory(cacheDir);
-            org.eclipse.jface.dialogs.MessageDialog.openInformation(getShell(), "Cache Cleared",
+            MessageDialog.openInformation(getShell(), "Cache Cleared",
                     "The downloaded runtime cache has been cleared.\n"
                             + "It will be re-downloaded on the next launch.");
         } else {
-            org.eclipse.jface.dialogs.MessageDialog.openInformation(getShell(), "No Cache Found",
-                    "No downloaded runtime cache exists.");
+            MessageDialog.openInformation(getShell(), "No Cache Found", "No downloaded runtime cache exists.");
         }
     }
 
