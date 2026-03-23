@@ -828,101 +828,87 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         }
 
         final ConnectionProfile profileToConnect = selectedProfile;
-        final Job               job              = new Job("Launching OSGi.fx: " + profileToConnect.name) {
-                                                     @Override
-                                                     protected IStatus run(final IProgressMonitor monitor) {
-                                                         try {
-                                                             final AzulZuluDownloader zuluDownloader = new AzulZuluDownloader();
-                                                             if (!zuluDownloader.isRuntimeAvailable()) {
-                                                                 zuluDownloader.schedule();
-                                                                 zuluDownloader.join();
-                                                                 final IStatus result = zuluDownloader.getResult();
-                                                                 if (result != null && !result.isOK()) {
-                                                                     throw new Exception(result.getMessage());
-                                                                 }
-                                                             }
 
-                                                             final RunOsgiFxDownloader scriptDownloader = new RunOsgiFxDownloader();
-                                                             if (!scriptDownloader.isScriptAvailable()) {
-                                                                 scriptDownloader.download();
-                                                             }
+        connectButton.setEnabled(false);
+        connectButton.setText("  Connecting...  ");
 
-                                                             final Path configPath = configWriter
-                                                                     .writeHeadlessConfig(profileToConnect);
+        final Job job = new Job("Launching OSGi.fx: " + profileToConnect.name) {
+            @Override
+            protected IStatus run(final IProgressMonitor monitor) {
+                try {
+                    final AzulZuluDownloader zuluDownloader = new AzulZuluDownloader();
+                    if (!zuluDownloader.isRuntimeAvailable()) {
+                        zuluDownloader.schedule();
+                        zuluDownloader.join();
+                        final IStatus result = zuluDownloader.getResult();
+                        if (result != null && !result.isOK()) {
+                            throw new Exception(result.getMessage());
+                        }
+                    }
 
-                                                             final IPreferenceStore preferences = OsgifxWorkspaceUtil
-                                                                     .getPreferenceStore();
-                                                             final boolean          useLocal    = preferences
-                                                                     .getBoolean(USE_LOCAL_JAR);
-                                                             final String           localJar    = preferences
-                                                                     .getString(OSGIFX_LOCAL_JAR);
-                                                             final String           gav         = preferences
-                                                                     .getString(OSGIFX_GAV);
+                    final RunOsgiFxDownloader scriptDownloader = new RunOsgiFxDownloader();
+                    if (!scriptDownloader.isScriptAvailable()) {
+                        scriptDownloader.download();
+                    }
 
-                                                             final OsgifxProcessLauncher launcher = new OsgifxProcessLauncher(profileToConnect,
-                                                                                                                              configPath,
-                                                                                                                              zuluDownloader
-                                                                                                                                      .getJavaExecutablePath(),
-                                                                                                                              scriptDownloader
-                                                                                                                                      .getScriptPath(),
-                                                                                                                              gav,
-                                                                                                                              useLocal ? localJar
-                                                                                                                                      : null);
+                    final Path configPath = configWriter.writeHeadlessConfig(profileToConnect);
 
-                                                             launcher.schedule();
-                                                             launcher.join();
+                    final IPreferenceStore preferences = OsgifxWorkspaceUtil.getPreferenceStore();
+                    final boolean          useLocal    = preferences.getBoolean(USE_LOCAL_JAR);
+                    final String           localJar    = preferences.getString(OSGIFX_LOCAL_JAR);
+                    final String           gav         = preferences.getString(OSGIFX_GAV);
 
-                                                             final IStatus launchStatus = launcher.getResult();
+                    final OsgifxProcessLauncher launcher = new OsgifxProcessLauncher(profileToConnect, configPath,
+                                                                                     zuluDownloader
+                                                                                             .getJavaExecutablePath(),
+                                                                                     scriptDownloader.getScriptPath(),
+                                                                                     gav, useLocal ? localJar : null);
 
-                                                             if (launchStatus.isOK()) {
-                                                                 Display.getDefault().asyncExec(() -> {
-                                                                                                              profileToConnect.lastConnected = Instant.now().toString();
-                                                                                                              profileToConnect.lastStatus = "SUCCESS";
-                                                                                                              profileStore
-                                                                                                                      .update(profileToConnect);
+                    launcher.schedule();
+                    launcher.join();
 
-                                                                                                              if (getShell() != null
-                                                                                                                      && !getShell()
-                                                                                                                              .isDisposed()) {
-                                                                                                                  close();
-                                                                                                              }
-                                                                                                          });
-                                                             } else {
-                                                                 throw new Exception(launchStatus.getMessage());
-                                                             }
+                    final IStatus launchStatus = launcher.getResult();
 
-                                                             return Status.OK_STATUS;
-                                                         } catch (final Exception e) {
-                                                             Display.getDefault().asyncExec(() -> {
-                                                                                                          profileToConnect.lastStatus = "FAILURE";
-                                                                                                          profileStore
-                                                                                                                  .update(profileToConnect);
+                    if (launchStatus.isOK()) {
+                        Display.getDefault().asyncExec(() -> {
+                            profileToConnect.lastConnected = Instant.now().toString();
+                            profileToConnect.lastStatus    = "SUCCESS";
+                            profileStore.update(profileToConnect);
 
-                                                                                                          if (getShell() != null
-                                                                                                                  && !getShell()
-                                                                                                                          .isDisposed()) {
-                                                                                                              final Path logFile = OsgifxProcessLauncher.getLogFile(
-                                                                                                                      profileToConnect.id);
-                                                                                                              String msg = "Failed to launch OSGi.fx. " + e
-                                                                                                                      .getMessage();
-                                                                                                              if (logFile != null
-                                                                                                                      && Files.exists(
-                                                                                                                              logFile)) {
-                                                                                                                  msg += "\n\nLog file created at: "
-                                                                                                                          + logFile
-                                                                                                                                  .toAbsolutePath();
-                                                                                                              }
-                                                                                                              MessageDialog
-                                                                                                                      .openError(
-                                                                                                                              getShell(),
-                                                                                                                              "Connection Error",
-                                                                                                                              msg);
-                                                                                                          }
-                                                                                                      });
-                                                             return Status.CANCEL_STATUS;
-                                                         }
-                                                     }
-                                                 };
+                            if (getShell() != null && !getShell().isDisposed()) {
+                                close();
+                            }
+                        });
+                    } else {
+                        throw new Exception(launchStatus.getMessage());
+                    }
+
+                    return Status.OK_STATUS;
+                } catch (final Exception e) {
+                    Display.getDefault().asyncExec(() -> {
+                        profileToConnect.lastStatus = "FAILURE";
+                        profileStore.update(profileToConnect);
+
+                        if (getShell() != null && !getShell().isDisposed()) {
+                            final Path logFile = OsgifxProcessLauncher.getLogFile(profileToConnect.id);
+                            String     msg     = "Failed to launch OSGi.fx. " + e.getMessage();
+                            if (logFile != null && Files.exists(logFile)) {
+                                msg += "\n\nLog file created at: " + logFile.toAbsolutePath();
+                            }
+                            MessageDialog.openError(getShell(), "Connection Error", msg);
+                        }
+                    });
+                    return Status.CANCEL_STATUS;
+                } finally {
+                    Display.getDefault().asyncExec(() -> {
+                        if (connectButton != null && !connectButton.isDisposed()) {
+                            connectButton.setText("  \u25B6  Connect  ");
+                            connectButton.setEnabled(true);
+                        }
+                    });
+                }
+            }
+        };
         job.setUser(true);
         job.schedule();
     }
