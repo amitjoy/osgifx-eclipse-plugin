@@ -31,6 +31,8 @@ public final class RunOsgiFxDownloader {
     private static final String SCRIPT_URL      = "https://raw.githubusercontent.com/amitjoy/osgifx/main/scripts/RunOSGiFx";
     private static final String SCRIPT_FILENAME = "RunOSGiFx";
 
+    private static final Object DOWNLOAD_LOCK = new Object();
+
     public Path getScriptPath() {
         final var stateLocation = OsgifxWorkspaceUtil.getStateLocation();
         return stateLocation.toPath().resolve(SCRIPT_FILENAME);
@@ -41,16 +43,22 @@ public final class RunOsgiFxDownloader {
     }
 
     public void download() throws IOException {
-        final var scriptPath = getScriptPath();
-        scriptPath.getParent().toFile().mkdirs();
+        synchronized (DOWNLOAD_LOCK) {
+            if (isScriptAvailable()) {
+                return;
+            }
+            
+            final var scriptPath = getScriptPath();
+            scriptPath.getParent().toFile().mkdirs();
 
-        try (final var is = new BufferedInputStream(new URL(SCRIPT_URL).openStream())) {
-            Files.copy(is, scriptPath, StandardCopyOption.REPLACE_EXISTING);
-        }
+            try (final var is = new BufferedInputStream(new URL(SCRIPT_URL).openStream())) {
+                Files.copy(is, scriptPath, StandardCopyOption.REPLACE_EXISTING);
+            }
 
-        // Set executable permission on Unix-like systems
-        if (!SystemUtils.IS_OS_WINDOWS) {
-            scriptPath.toFile().setExecutable(true);
+            // Set executable permission on Unix-like systems
+            if (!SystemUtils.IS_OS_WINDOWS) {
+                scriptPath.toFile().setExecutable(true);
+            }
         }
     }
 }

@@ -44,6 +44,8 @@ public final class AzulZuluDownloader extends Job {
     private static final String VERSION     = "25";
     private static final String ARCHIVE_DIR = "zulu-fx-25";
 
+    private static final Object DOWNLOAD_LOCK = new Object();
+
     private final Gson gson = new Gson();
 
     public AzulZuluDownloader() {
@@ -77,38 +79,40 @@ public final class AzulZuluDownloader extends Job {
 
     @Override
     protected IStatus run(final IProgressMonitor monitor) {
-        try {
-            final var runtimePath = getRuntimePath();
-            if (isRuntimeAvailable()) {
-                return Status.OK_STATUS;
-            }
-
-            monitor.beginTask("Downloading Azul Zulu FX 25", IProgressMonitor.UNKNOWN);
-
-            monitor.subTask("Querying Azul API for download URL...");
-            final var downloadUrl = fetchDownloadUrl();
-            if (downloadUrl == null) {
-                return errorStatus("Failed to find Java 25 FX bundle for your platform");
-            }
-
-            monitor.subTask("Downloading runtime archive...");
-            final var archiveFile = downloadArchive(downloadUrl, monitor);
-
+        synchronized (DOWNLOAD_LOCK) {
             try {
-                monitor.subTask("Extracting runtime archive...");
-                extractArchive(archiveFile, runtimePath.toFile());
+                final var runtimePath = getRuntimePath();
+                if (isRuntimeAvailable()) {
+                    return Status.OK_STATUS;
+                }
 
-                monitor.subTask("Validating JavaFX modules...");
-                validateJavaFx();
+                monitor.beginTask("Downloading Azul Zulu FX 25", IProgressMonitor.UNKNOWN);
+
+                monitor.subTask("Querying Azul API for download URL...");
+                final var downloadUrl = fetchDownloadUrl();
+                if (downloadUrl == null) {
+                    return errorStatus("Failed to find Java 25 FX bundle for your platform");
+                }
+
+                monitor.subTask("Downloading runtime archive...");
+                final var archiveFile = downloadArchive(downloadUrl, monitor);
+
+                try {
+                    monitor.subTask("Extracting runtime archive...");
+                    extractArchive(archiveFile, runtimePath.toFile());
+
+                    monitor.subTask("Validating JavaFX modules...");
+                    validateJavaFx();
+                } finally {
+                    Files.deleteIfExists(archiveFile.toPath());
+                }
+
+                return Status.OK_STATUS;
+            } catch (final Exception e) {
+                return errorStatus("Failed to download Azul Zulu FX 25: " + e.getMessage());
             } finally {
-                Files.deleteIfExists(archiveFile.toPath());
+                monitor.done();
             }
-
-            return Status.OK_STATUS;
-        } catch (final Exception e) {
-            return errorStatus("Failed to download Azul Zulu FX 25: " + e.getMessage());
-        } finally {
-            monitor.done();
         }
     }
 
