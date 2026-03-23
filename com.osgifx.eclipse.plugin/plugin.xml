@@ -53,7 +53,7 @@
 		<menuContribution locationURI="menu:window?after=additions">
 			<command
 				commandId="com.osgifx.eclipse.commands.launch"
-				label="OSGi.fx Console"
+				label="OSGi.fx"
 				icon="icons/icon.png">
 			</command>
 		</menuContribution>

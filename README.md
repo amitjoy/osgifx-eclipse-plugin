@@ -15,7 +15,7 @@
 -->
 # OSGi.fx Eclipse Plugin
 
-This repository contains the Eclipse IDE integration for the [OSGi.fx](https://github.com/amitjoy/osgifx) diagnostic tool. It provides a seamless way to manage connections and launch the OSGi.fx console directly from your Eclipse environment.
+This repository contains the Eclipse IDE integration for the [OSGi.fx](https://github.com/amitjoy/osgifx) diagnostic tool. It provides a seamless way to manage connections and launch OSGi.fx directly from your Eclipse environment.
 
 ## 🚀 Key Features
 

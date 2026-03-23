@@ -4,7 +4,7 @@
 		id="com.osgifx.eclipse.feature" version="0.0.0">
 		<category name="osgifx" />
 	</feature>
-	<category-def name="osgifx" label="OSGi.fx Console">
+	<category-def name="osgifx" label="OSGi.fx">
 		<description>OSGi.fx Headless Launcher and Connection Manager</description>
 	</category-def>
 </site>
