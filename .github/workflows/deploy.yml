@@ -86,3 +86,4 @@ jobs:
           publish_dir: ./org.osgifx.eclipse.repository/target/repository
           destination_dir: ${{ env.DEST_DIR }} 
           keep_files: true
+          disable_nojekyll: true
