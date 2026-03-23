@@ -41,7 +41,7 @@ echo "Creating release branch: $BRANCH_NAME..."
 git checkout -b "$BRANCH_NAME"
 
 echo "Updating Tycho/Eclipse versions to $VERSION..."
-mvn org.eclipse.tycho:tycho-versions-plugin:set-version -DnewVersion="$VERSION"
+MAVEN_OPTS="-Djdk.xml.maxGeneralEntitySizeLimit=0 -Djdk.xml.totalEntitySizeLimit=0" mvn org.eclipse.tycho:tycho-versions-plugin:set-version -DnewVersion="$VERSION"
 git commit -am "chore: bump version to $VERSION for release" || echo "Version was already set to $VERSION, nothing to commit."
 
 echo "Pushing $BRANCH_NAME to origin..."
@@ -55,7 +55,7 @@ read -p "Enter the next development version for main (e.g., 1.1.0-SNAPSHOT): " N
 
 if [[ -n "$NEXT_VERSION" ]]; then
     echo "Updating main to next development version: $NEXT_VERSION..."
-    mvn org.eclipse.tycho:tycho-versions-plugin:set-version -DnewVersion="$NEXT_VERSION"
+    MAVEN_OPTS="-Djdk.xml.maxGeneralEntitySizeLimit=0 -Djdk.xml.totalEntitySizeLimit=0" mvn org.eclipse.tycho:tycho-versions-plugin:set-version -DnewVersion="$NEXT_VERSION"
     git commit -am "chore: start next development iteration $NEXT_VERSION" || echo "Nothing to commit."
     git push origin main
     echo "Success! main is now on $NEXT_VERSION"
