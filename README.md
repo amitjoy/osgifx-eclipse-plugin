@@ -54,6 +54,14 @@ This will:
 3. Generate OSGi bundles and the Eclipse feature.
 4. Create the P2 update site.
 
+> [!WARNING]
+> If you are using a newer JVM and face XML parsing errors (e.g., `JAXP00010003` or `JAXP00010004`) while downloading Eclipse p2 repositories, it is likely due to the strict XML entity size limits introduced in recent JDK updates.
+> 
+> You can bypass these limits during the Maven build by configuring the `MAVEN_OPTS` environment variable:
+> ```bash
+> MAVEN_OPTS="-Djdk.xml.maxGeneralEntitySizeLimit=0 -Djdk.xml.totalEntitySizeLimit=0" mvn clean verify -Dtycho.p2.transport=apache
+> ```
+
 ### 🔏 GPG Signing
 To sign the P2 repository (e.g., for official releases), use the `ossrh` profile:
 ```bash
