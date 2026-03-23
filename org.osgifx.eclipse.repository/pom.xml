@@ -10,4 +10,27 @@
 	</parent>
 	<artifactId>org.osgifx.eclipse.repository</artifactId>
 	<packaging>eclipse-repository</packaging>
+
+	<profiles>
+		<profile>
+			<id>ossrh</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.eclipse.tycho</groupId>
+						<artifactId>tycho-gpg-plugin</artifactId>
+						<version>${tycho-version}</version>
+						<executions>
+							<execution>
+								<id>sign-p2-artifacts</id>
+								<goals>
+									<goal>sign-p2-artifacts</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>
