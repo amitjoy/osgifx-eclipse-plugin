@@ -28,7 +28,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -96,6 +98,8 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     private static final int MARGIN      = 15;
     private static final int SPACING     = 10;
     private static final int LABEL_WIDTH = 130;
+
+    private static final Set<String> connectingProfiles = ConcurrentHashMap.newKeySet();
 
     private ConnectionProfileStore  profileStore;
     private VolatileConfigWriter    configWriter;
@@ -663,8 +667,16 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
             }
         }
 
+        final boolean isConnecting = selectedProfile != null && connectingProfiles.contains(selectedProfile.id);
+
         if (connectButton != null && !connectButton.isDisposed()) {
-            connectButton.setEnabled(isValid);
+            if (isConnecting) {
+                connectButton.setEnabled(false);
+                connectButton.setText("  Connecting...  ");
+            } else {
+                connectButton.setEnabled(isValid && !isDirty);
+                connectButton.setText("  \u25B6  Connect  ");
+            }
         }
         final Button okButton = getButton(OK);
         if (okButton != null && !okButton.isDisposed()) {
@@ -702,7 +714,14 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                 okButton.setEnabled(true);
             }
             if (connectButton != null && !connectButton.isDisposed()) {
-                connectButton.setEnabled(!isDirty);
+                final boolean isConnecting = connectingProfiles.contains(selectedProfile.id);
+                if (isConnecting) {
+                    connectButton.setEnabled(false);
+                    connectButton.setText("  Connecting...  ");
+                } else {
+                    connectButton.setEnabled(!isDirty);
+                    connectButton.setText("  \u25B6  Connect  ");
+                }
             }
             if (saveButton != null && !saveButton.isDisposed()) {
                 saveButton.setEnabled(isDirty);
@@ -829,6 +848,8 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
         final ConnectionProfile profileToConnect = selectedProfile;
 
+        connectingProfiles.add(profileToConnect.id);
+
         connectButton.setEnabled(false);
         connectButton.setText("  Connecting...  ");
 
@@ -900,8 +921,10 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
                     });
                     return Status.CANCEL_STATUS;
                 } finally {
+                    connectingProfiles.remove(profileToConnect.id);
                     Display.getDefault().asyncExec(() -> {
-                        if (connectButton != null && !connectButton.isDisposed()) {
+                        if (connectButton != null && !connectButton.isDisposed() && selectedProfile != null
+                                && profileToConnect.id.equals(selectedProfile.id)) {
                             connectButton.setText("  \u25B6  Connect  ");
                             connectButton.setEnabled(true);
                         }
