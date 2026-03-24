@@ -25,25 +25,7 @@ Bundle-Version: 1.1.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-11
 Bundle-ClassPath: .,
  lib/gson-2.11.0.jar
-Import-Package: java.io,
- java.lang,
- java.lang.invoke,
- java.lang.reflect,
- java.net,
- java.nio.file,
- java.time,
- java.time.format,
- java.time.temporal,
- java.util,
- java.util.concurrent,
- java.util.function,
- java.util.stream,
- java.util.zip,
- org.eclipse.ui;ui.workbench=split,
- org.eclipse.ui.handlers,
- org.eclipse.ui.plugin,
- org.eclipse.ui.preferences,
- org.osgi.framework;version="[1.9,2)",
+Import-Package: org.osgi.framework;version="[1.9,2)",
  org.osgi.service.prefs;version="[1.1,2)"
 OSGifx-Version: 3.0.0
 Private-Package: com.osgifx.eclipse.internal,com.osgifx.eclipse.intern
