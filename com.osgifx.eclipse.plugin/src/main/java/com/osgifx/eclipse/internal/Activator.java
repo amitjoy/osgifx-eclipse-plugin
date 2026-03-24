@@ -16,10 +16,8 @@
 package com.osgifx.eclipse.internal;
 
 import org.eclipse.core.runtime.Status;
-import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
-import org.osgi.service.prefs.Preferences;
 
 public final class Activator extends AbstractUIPlugin {
 
@@ -48,10 +46,6 @@ public final class Activator extends AbstractUIPlugin {
 
     public BundleContext getBundleContext() {
         return bundleContext;
-    }
-
-    public static Preferences getPreferences() {
-        return InstanceScope.INSTANCE.getNode(PLUGIN_ID);
     }
 
     public static void log(final int severity, final String message, final Throwable throwable) {
