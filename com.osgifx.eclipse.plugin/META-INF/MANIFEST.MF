@@ -45,7 +45,7 @@ Import-Package: com.google.gson;version="[2.7,3)",
  org.eclipse.ui.handlers,
  org.eclipse.ui.plugin,
  org.eclipse.ui.preferences,
- org.osgi.framework;version="[1.10,2)",
+ org.osgi.framework;version="[1.9,2)",
  org.osgi.service.prefs;version="[1.1,2)"
 OSGifx-Version: 3.0.0
 Private-Package: com.osgifx.eclipse.internal,com.osgifx.eclipse.intern
