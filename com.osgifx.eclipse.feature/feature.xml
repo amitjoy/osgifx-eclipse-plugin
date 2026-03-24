@@ -21,7 +21,7 @@
       provider-name="OSGi.fx">
 
    <description url="https://osgifx.com">
-      Eclipse IDE integration for OSGi.fx diagnostic tool
+      Eclipse IDE integration for OSGi.fx
    </description>
 
    <copyright>
