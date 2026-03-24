@@ -17,7 +17,7 @@
 <feature
       id="com.osgifx.eclipse.feature"
       label="OSGi.fx Eclipse Launcher Feature"
-      version="1.1.0.qualifier"
+      version="1.0.0"
       provider-name="OSGi.fx">
 
    <description url="https://osgifx.com">
