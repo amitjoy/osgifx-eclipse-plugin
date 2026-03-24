@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.osgifx.eclipse.internal.util.OSUtils;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -30,6 +29,7 @@ import org.eclipse.core.runtime.jobs.Job;
 
 import com.osgifx.eclipse.internal.Activator;
 import com.osgifx.eclipse.internal.storage.ConnectionProfile;
+import com.osgifx.eclipse.internal.util.OSUtils;
 import com.osgifx.eclipse.internal.util.OsgifxWorkspaceUtil;
 
 public final class OsgifxProcessLauncher extends Job {

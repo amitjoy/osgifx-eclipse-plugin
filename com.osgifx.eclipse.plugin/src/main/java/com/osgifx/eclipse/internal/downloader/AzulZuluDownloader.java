@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import com.osgifx.eclipse.internal.util.OSUtils;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -36,6 +35,7 @@ import org.eclipse.core.runtime.jobs.Job;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.osgifx.eclipse.internal.util.OSUtils;
 import com.osgifx.eclipse.internal.util.OsgifxWorkspaceUtil;
 
 public final class AzulZuluDownloader extends Job {

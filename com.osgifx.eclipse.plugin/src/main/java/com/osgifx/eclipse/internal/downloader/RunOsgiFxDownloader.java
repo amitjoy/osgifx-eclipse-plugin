@@ -23,7 +23,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 import com.osgifx.eclipse.internal.util.OSUtils;
-
 import com.osgifx.eclipse.internal.util.OsgifxWorkspaceUtil;
 
 public final class RunOsgiFxDownloader {
@@ -47,7 +46,7 @@ public final class RunOsgiFxDownloader {
             if (isScriptAvailable()) {
                 return;
             }
-            
+
             final var scriptPath = getScriptPath();
             scriptPath.getParent().toFile().mkdirs();
 
