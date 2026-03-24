@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import org.apache.commons.lang.SystemUtils;
+import com.osgifx.eclipse.internal.util.OSUtils;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -62,7 +62,7 @@ public final class AzulZuluDownloader extends Job {
         if (!Files.exists(runtimePath)) {
             return null;
         }
-        final var javaExe = SystemUtils.IS_OS_WINDOWS ? "java.exe" : "java";
+        final var javaExe = OSUtils.IS_OS_WINDOWS ? "java.exe" : "java";
 
         try (final var stream = Files.walk(runtimePath)) {
             return stream.filter(Files::isRegularFile).filter(path -> path.getFileName().toString().equals(javaExe))
@@ -137,9 +137,9 @@ public final class AzulZuluDownloader extends Job {
     }
 
     private String detectOs() {
-        if (SystemUtils.IS_OS_WINDOWS) {
+        if (OSUtils.IS_OS_WINDOWS) {
             return "windows";
-        } else if (SystemUtils.IS_OS_MAC) {
+        } else if (OSUtils.IS_OS_MAC) {
             return "macos";
         } else {
             return "linux";
@@ -147,7 +147,7 @@ public final class AzulZuluDownloader extends Job {
     }
 
     private String detectArch() {
-        final var arch = SystemUtils.OS_ARCH.toLowerCase();
+        final var arch = OSUtils.OS_ARCH.toLowerCase();
         if (arch.contains("aarch64") || arch.contains("arm")) {
             return "arm";
         }
@@ -212,7 +212,7 @@ public final class AzulZuluDownloader extends Job {
                     Files.copy(zis, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
                     // Set executable permission on Unix-like systems for bin binaries
-                    if (!SystemUtils.IS_OS_WINDOWS && (entryPath.contains("/bin/") || entryPath.startsWith("bin/"))) {
+                    if (!OSUtils.IS_OS_WINDOWS && (entryPath.contains("/bin/") || entryPath.startsWith("bin/"))) {
                         targetFile.setExecutable(true);
                     }
                 }
@@ -228,7 +228,7 @@ public final class AzulZuluDownloader extends Job {
 
         final var cmd = new ArrayList<String>();
         cmd.add(javaExe.toString());
-        if (SystemUtils.IS_OS_MAC) {
+        if (OSUtils.IS_OS_MAC) {
             cmd.add("-Djdk.lang.Process.launchMechanism=FORK");
         }
         cmd.add("--list-modules");

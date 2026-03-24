@@ -23,15 +23,14 @@ Bundle-SymbolicName: com.osgifx.eclipse.plugin;singleton:=true
 Bundle-Vendor: OSGi.fx
 Bundle-Version: 1.1.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-11
-Import-Package: com.google.gson;version="[2.7,3)",
- com.google.gson.reflect;version="[2.7,3)",
- java.io,
+Bundle-ClassPath: .,
+ lib/gson-2.11.0.jar
+Import-Package: java.io,
  java.lang,
  java.lang.invoke,
  java.lang.reflect,
  java.net,
  java.nio.file,
- java.nio.file.attribute,
  java.time,
  java.time.format,
  java.time.temporal,
@@ -40,7 +39,6 @@ Import-Package: com.google.gson;version="[2.7,3)",
  java.util.function,
  java.util.stream,
  java.util.zip,
- org.apache.commons.lang;version="[2.6,3)",
  org.eclipse.ui;ui.workbench=split,
  org.eclipse.ui.handlers,
  org.eclipse.ui.plugin,
@@ -53,8 +51,6 @@ Private-Package: com.osgifx.eclipse.internal,com.osgifx.eclipse.intern
  .internal.preferences,com.osgifx.eclipse.internal.storage,com.osgifx.
  eclipse.internal.util,com.osgifx.eclipse.ui.dialogs,com.osgifx.eclips
  e.ui.handlers,icons
-Require-Bundle: org.eclipse.ui,org.eclipse.core.runtime,org.eclipse.jf
- ace,org.eclipse.swt,org.eclipse.core.commands,org.eclipse.core.jobs,o
- rg.eclipse.equinox.common,org.eclipse.equinox.registry,org.eclipse.eq
- uinox.preferences
+Require-Bundle: org.eclipse.ui,
+ org.eclipse.core.runtime
 

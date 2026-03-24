@@ -22,7 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
-import org.apache.commons.lang.SystemUtils;
+import com.osgifx.eclipse.internal.util.OSUtils;
 
 import com.osgifx.eclipse.internal.util.OsgifxWorkspaceUtil;
 
@@ -56,7 +56,7 @@ public final class RunOsgiFxDownloader {
             }
 
             // Set executable permission on Unix-like systems
-            if (!SystemUtils.IS_OS_WINDOWS) {
+            if (!OSUtils.IS_OS_WINDOWS) {
                 scriptPath.toFile().setExecutable(true);
             }
         }

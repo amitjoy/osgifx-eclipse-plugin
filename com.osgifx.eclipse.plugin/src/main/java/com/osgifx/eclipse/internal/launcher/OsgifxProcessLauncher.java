@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.commons.lang.SystemUtils;
+import com.osgifx.eclipse.internal.util.OSUtils;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -134,7 +134,7 @@ public final class OsgifxProcessLauncher extends Job {
     private List<String> buildCommand() {
         final var cmd = new ArrayList<String>();
         cmd.add(javaExePath.toString());
-        if (SystemUtils.IS_OS_MAC) {
+        if (OSUtils.IS_OS_MAC) {
             cmd.add("-Djdk.lang.Process.launchMechanism=FORK");
         }
         cmd.add("--source");
