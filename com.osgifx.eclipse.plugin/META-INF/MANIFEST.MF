@@ -26,7 +26,6 @@ Bundle-RequiredExecutionEnvironment: JavaSE-11
 Bundle-ClassPath: .,
  lib/gson-2.11.0.jar
 Import-Package: org.osgi.framework;version="[1.9,2)"
-OSGifx-Version: 3.0.0
 Private-Package: com.osgifx.eclipse.internal,com.osgifx.eclipse.intern
  al.downloader,com.osgifx.eclipse.internal.launcher,com.osgifx.eclipse
  .internal.preferences,com.osgifx.eclipse.internal.storage,com.osgifx.
