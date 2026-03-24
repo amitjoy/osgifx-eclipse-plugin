@@ -180,7 +180,7 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
         getShell().setText("OSGi.fx Connection Manager");
         setTitle("OSGi.fx Connection Manager");
-        setMessage("Create and manage connection profiles for OSGi.fx diagnostic tool");
+        setMessage("Create and manage connection profiles for OSGi.fx");
 
         // Phase 1: Asset Integration & Header Branding
         final ImageDescriptor logoDescriptor = AbstractUIPlugin.imageDescriptorFromPlugin("com.osgifx.eclipse.plugin",
