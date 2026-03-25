@@ -20,7 +20,7 @@ Bundle-SCM: url=https://github.com/amitjoy/osgifx-eclipse-plugin.git,connection=
  git@github.com/amitjoy/osgifx-eclipse-plugin.git
 Bundle-SymbolicName: com.osgifx.eclipse.plugin;singleton:=true
 Bundle-Vendor: OSGi.fx
-Bundle-Version: 1.1.0.qualifier
+Bundle-Version: 1.2.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-11
 Bundle-ClassPath: .,
  lib/gson-2.11.0.jar
