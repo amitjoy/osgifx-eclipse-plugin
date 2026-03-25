@@ -137,6 +137,16 @@ public final class OsgifxProcessLauncher extends Job {
         if (OSUtils.IS_OS_MAC) {
             cmd.add("-Djdk.lang.Process.launchMechanism=FORK");
         }
+
+        final var trustStore = System.getProperty("javax.net.ssl.trustStore");
+        if (trustStore != null) {
+            cmd.add("-Djavax.net.ssl.trustStore=" + trustStore);
+        }
+        final var trustStorePassword = System.getProperty("javax.net.ssl.trustStorePassword");
+        if (trustStorePassword != null) {
+            cmd.add("-Djavax.net.ssl.trustStorePassword=" + trustStorePassword);
+        }
+
         cmd.add("--source");
         cmd.add("25");
         cmd.add(scriptPath.toString());
