@@ -22,6 +22,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
+import org.eclipse.core.runtime.IStatus;
+
+import com.osgifx.eclipse.internal.Activator;
 import com.osgifx.eclipse.internal.util.OSUtils;
 import com.osgifx.eclipse.internal.util.OsgifxWorkspaceUtil;
 
@@ -44,20 +47,26 @@ public final class RunOsgiFxDownloader {
     public void download() throws IOException {
         synchronized (DOWNLOAD_LOCK) {
             if (isScriptAvailable()) {
+                Activator.log(IStatus.INFO, "RunOSGiFx script already cached at: " + getScriptPath(), null);
                 return;
             }
 
             final var scriptPath = getScriptPath();
             scriptPath.getParent().toFile().mkdirs();
 
+            Activator.log(IStatus.INFO, "Downloading RunOSGiFx script from: " + SCRIPT_URL, null);
             try (final var is = new BufferedInputStream(new URL(SCRIPT_URL).openStream())) {
                 Files.copy(is, scriptPath, StandardCopyOption.REPLACE_EXISTING);
+            } catch (final IOException e) {
+                Activator.log(IStatus.ERROR, "Failed to download RunOSGiFx script from: " + SCRIPT_URL, e);
+                throw e;
             }
 
             // Set executable permission on Unix-like systems
             if (!OSUtils.IS_OS_WINDOWS) {
                 scriptPath.toFile().setExecutable(true);
             }
+            Activator.log(IStatus.INFO, "RunOSGiFx script downloaded successfully to: " + scriptPath, null);
         }
     }
 }

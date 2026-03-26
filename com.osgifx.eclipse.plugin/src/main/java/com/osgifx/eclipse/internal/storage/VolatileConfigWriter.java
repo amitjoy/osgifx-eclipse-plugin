@@ -20,9 +20,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Path;
 
+import org.eclipse.core.runtime.IStatus;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import com.osgifx.eclipse.internal.Activator;
 
 public final class VolatileConfigWriter {
 
@@ -43,9 +46,11 @@ public final class VolatileConfigWriter {
         try (final var writer = new FileWriter(configFile)) {
             gson.toJson(headlessConfig, writer);
         } catch (final IOException e) {
+            Activator.log(IStatus.ERROR, "Failed to write headless config to: " + configFile.getAbsolutePath(), e);
             throw new RuntimeException("Failed to write headless config", e);
         }
 
+        Activator.log(IStatus.INFO, "Headless config written to: " + configFile.getAbsolutePath(), null);
         return configFile.toPath();
     }
 

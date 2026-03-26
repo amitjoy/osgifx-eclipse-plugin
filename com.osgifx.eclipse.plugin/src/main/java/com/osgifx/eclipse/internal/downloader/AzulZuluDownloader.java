@@ -35,6 +35,7 @@ import org.eclipse.core.runtime.jobs.Job;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.osgifx.eclipse.internal.Activator;
 import com.osgifx.eclipse.internal.util.OSUtils;
 import com.osgifx.eclipse.internal.util.OsgifxWorkspaceUtil;
 
@@ -83,33 +84,40 @@ public final class AzulZuluDownloader extends Job {
             try {
                 final var runtimePath = getRuntimePath();
                 if (isRuntimeAvailable()) {
+                    Activator.log(IStatus.INFO, "Azul Zulu FX 25 runtime already available at: " + runtimePath, null);
                     return Status.OK_STATUS;
                 }
 
                 monitor.beginTask("Downloading Azul Zulu FX 25", IProgressMonitor.UNKNOWN);
 
                 monitor.subTask("Querying Azul API for download URL...");
+                Activator.log(IStatus.INFO, "Querying Azul API for Java 25 FX bundle...", null);
                 final var downloadUrl = fetchDownloadUrl();
                 if (downloadUrl == null) {
                     return errorStatus("Failed to find Java 25 FX bundle for your platform");
                 }
+                Activator.log(IStatus.INFO, "Azul Zulu FX 25 download URL resolved: " + downloadUrl, null);
 
                 monitor.subTask("Downloading runtime archive...");
+                Activator.log(IStatus.INFO, "Downloading Azul Zulu FX 25 runtime archive...", null);
                 final var archiveFile = downloadArchive(downloadUrl, monitor);
 
                 try {
                     monitor.subTask("Extracting runtime archive...");
+                    Activator.log(IStatus.INFO, "Extracting Azul Zulu FX 25 runtime to: " + runtimePath, null);
                     extractArchive(archiveFile, runtimePath.toFile());
 
                     monitor.subTask("Validating JavaFX modules...");
                     validateJavaFx();
+                    Activator.log(IStatus.INFO, "Azul Zulu FX 25 runtime validated successfully at: " + runtimePath,
+                            null);
                 } finally {
                     Files.deleteIfExists(archiveFile.toPath());
                 }
 
                 return Status.OK_STATUS;
             } catch (final Exception e) {
-                return errorStatus("Failed to download Azul Zulu FX 25: " + e.getMessage());
+                return errorStatus("Failed to download Azul Zulu FX 25: " + e.getMessage(), e);
             } finally {
                 monitor.done();
             }
@@ -250,6 +258,11 @@ public final class AzulZuluDownloader extends Job {
     }
 
     private IStatus errorStatus(final String message) {
-        return new Status(IStatus.ERROR, "com.osgifx.eclipse.plugin", message);
+        return errorStatus(message, null);
+    }
+
+    private IStatus errorStatus(final String message, final Throwable throwable) {
+        Activator.log(IStatus.ERROR, message, throwable);
+        return new Status(IStatus.ERROR, "com.osgifx.eclipse.plugin", message, throwable);
     }
 }

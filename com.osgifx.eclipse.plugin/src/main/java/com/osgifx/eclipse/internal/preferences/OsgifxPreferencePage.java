@@ -22,8 +22,13 @@ import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.USE_LOCAL_JAR;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Path;
 
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.dialogs.ProgressMonitorDialog;
 import org.eclipse.jface.preference.BooleanFieldEditor;
 import org.eclipse.jface.preference.FieldEditor;
 import org.eclipse.jface.preference.FieldEditorPreferencePage;
@@ -35,11 +40,13 @@ import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.DirectoryDialog;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 
 import com.osgifx.eclipse.internal.Activator;
+import com.osgifx.eclipse.internal.downloader.AgentDownloader;
 import com.osgifx.eclipse.internal.util.OsgifxWorkspaceUtil;
 
 public final class OsgifxPreferencePage extends FieldEditorPreferencePage implements IWorkbenchPreferencePage {
@@ -83,6 +90,7 @@ public final class OsgifxPreferencePage extends FieldEditorPreferencePage implem
         addField(gavEditor);
 
         addCacheManagementSection(parent);
+        addAgentSection(parent);
     }
 
     private void addCacheManagementSection(final Composite parent) {
@@ -107,6 +115,8 @@ public final class OsgifxPreferencePage extends FieldEditorPreferencePage implem
 
         if (cacheDir.exists()) {
             deleteDirectory(cacheDir);
+            Activator.log(IStatus.INFO, "Azul Zulu FX 25 runtime cache cleared from: " + cacheDir.getAbsolutePath(),
+                    null);
             MessageDialog.openInformation(getShell(), "Cache Cleared",
                     "The downloaded runtime cache has been cleared.\n"
                             + "It will be re-downloaded on the next launch.");
@@ -127,6 +137,68 @@ public final class OsgifxPreferencePage extends FieldEditorPreferencePage implem
             }
         }
         directory.delete();
+    }
+
+    private void addAgentSection(final Composite parent) {
+        final var separator = new Label(parent, SWT.SEPARATOR | SWT.HORIZONTAL);
+        separator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
+
+        final var agentHeader = new Label(parent, SWT.NONE);
+        agentHeader.setText("Remote Agent");
+        agentHeader.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
+
+        final var agentInfo = new Label(parent, SWT.WRAP);
+        agentInfo
+                .setText("The remote agent must be manually deployed into your target OSGi runtime before connecting.");
+        final var agentInfoData = new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1);
+        agentInfoData.widthHint = 400;
+        agentInfo.setLayoutData(agentInfoData);
+
+        final var downloadButton = new Button(parent, SWT.PUSH);
+        downloadButton.setText("Download Latest Agent");
+        downloadButton.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false, 3, 1));
+        downloadButton.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(final SelectionEvent e) {
+                triggerAgentDownload();
+            }
+        });
+    }
+
+    private void triggerAgentDownload() {
+        final var dirDialog = new DirectoryDialog(getShell(), SWT.SAVE);
+        dirDialog.setText("Choose Download Folder");
+        dirDialog.setMessage("Select a folder to save the OSGi.fx Remote Agent JAR:");
+        final var chosenDir = dirDialog.open();
+        if (chosenDir == null) {
+            return; // user cancelled
+        }
+        final var targetDir  = Path.of(chosenDir);
+        final var downloader = new AgentDownloader();
+        try {
+            final Path[] resultHolder = new Path[1];
+            new ProgressMonitorDialog(getShell()).run(true, false, (final IProgressMonitor monitor) -> {
+                try {
+                    monitor.beginTask("Downloading OSGi.fx Remote Agent...", IProgressMonitor.UNKNOWN);
+                    resultHolder[0] = downloader.download(targetDir, monitor);
+                } catch (final Exception ex) {
+                    throw new InvocationTargetException(ex);
+                } finally {
+                    monitor.done();
+                }
+            });
+            MessageDialog.openInformation(getShell(), "Agent Downloaded",
+                    "OSGi.fx Remote Agent downloaded successfully to:\n" + resultHolder[0].toAbsolutePath()
+                            + "\n\nDeploy this JAR into your target OSGi runtime.");
+        } catch (final InvocationTargetException ex) {
+            final var cause = ex.getCause();
+            final var msg   = cause != null ? cause.getMessage() : ex.getMessage();
+            Activator.log(IStatus.ERROR, "Failed to download OSGi.fx Remote Agent: " + msg, cause != null ? cause : ex);
+            MessageDialog.openError(getShell(), "Download Failed",
+                    "Failed to download the OSGi.fx Remote Agent:\n" + msg);
+        } catch (final InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Override

@@ -15,11 +15,13 @@
  ******************************************************************************/
 package com.osgifx.eclipse.ui.dialogs;
 
+import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.AGENT_BANNER_DISMISSED;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.OSGIFX_GAV;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.OSGIFX_LOCAL_JAR;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.USE_LOCAL_JAR;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -36,7 +38,10 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.jface.dialogs.Dialog;
+import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.dialogs.ProgressMonitorDialog;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.fieldassist.ControlDecoration;
 import org.eclipse.jface.fieldassist.FieldDecorationRegistry;
@@ -68,9 +73,11 @@ import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.program.Program;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.DirectoryDialog;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Label;
@@ -85,6 +92,8 @@ import org.eclipse.ui.ISharedImages;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 
+import com.osgifx.eclipse.internal.Activator;
+import com.osgifx.eclipse.internal.downloader.AgentDownloader;
 import com.osgifx.eclipse.internal.downloader.AzulZuluDownloader;
 import com.osgifx.eclipse.internal.downloader.RunOsgiFxDownloader;
 import com.osgifx.eclipse.internal.launcher.OsgifxProcessLauncher;
@@ -150,6 +159,9 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     private CTabItem          socketTab;
     private CTabItem          mqttTab;
     private ConnectionProfile newlyCreatedProfile;
+
+    // Agent banner
+    private Composite bannerComposite;
 
     // Validation
     private final Map<Control, ControlDecoration> decorations = new HashMap<>();
@@ -235,6 +247,8 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         final Composite container = (Composite) super.createDialogArea(parent);
         resourceManager = new LocalResourceManager(JFaceResources.getResources(), getShell());
 
+        createAgentBanner(container);
+
         // Phase 2: Structural Layout Upgrade (SashForm master-detail)
         final SashForm mainSash = new SashForm(container, SWT.HORIZONTAL | SWT.SMOOTH);
         mainSash.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
@@ -246,6 +260,72 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         mainSash.setWeights(new int[] { 30, 70 });
 
         return container;
+    }
+
+    private void createAgentBanner(final Composite parent) {
+        final var store = OsgifxWorkspaceUtil.getPreferenceStore();
+        if (store.getBoolean(AGENT_BANNER_DISMISSED)) {
+            return;
+        }
+
+        bannerComposite = new Composite(parent, SWT.NONE);
+        bannerComposite.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        bannerComposite.setLayout(GridLayoutFactory.fillDefaults().numColumns(3).margins(8, 6).create());
+        bannerComposite.setBackground(parent.getDisplay().getSystemColor(SWT.COLOR_INFO_BACKGROUND));
+
+        final var infoLabel = new Label(bannerComposite, SWT.WRAP);
+        infoLabel.setText("\u2139  The OSGi.fx agent must be running in your target runtime before connecting.");
+        infoLabel.setBackground(parent.getDisplay().getSystemColor(SWT.COLOR_INFO_BACKGROUND));
+        infoLabel.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
+
+        final var downloadBtn = new Button(bannerComposite, SWT.PUSH);
+        downloadBtn.setText("Download Latest Agent");
+        downloadBtn.addListener(SWT.Selection, e -> triggerAgentDownload());
+
+        final var dismissBtn = new Button(bannerComposite, SWT.PUSH);
+        dismissBtn.setText("\u00D7 Dismiss");
+        dismissBtn.addListener(SWT.Selection, e -> {
+            store.setValue(AGENT_BANNER_DISMISSED, true);
+            Activator.log(IStatus.INFO, "OSGi.fx agent banner dismissed by user.", null);
+            bannerComposite.dispose();
+            parent.layout(true, true);
+        });
+    }
+
+    private void triggerAgentDownload() {
+        final var dirDialog = new DirectoryDialog(getShell(), SWT.SAVE);
+        dirDialog.setText("Choose Download Folder");
+        dirDialog.setMessage("Select a folder to save the OSGi.fx Remote Agent JAR:");
+        final var chosenDir = dirDialog.open();
+        if (chosenDir == null) {
+            return;
+        }
+        final var targetDir  = Path.of(chosenDir);
+        final var downloader = new AgentDownloader();
+        try {
+            final Path[] resultHolder = new Path[1];
+            new ProgressMonitorDialog(getShell()).run(true, false, monitor -> {
+                try {
+                    monitor.beginTask("Downloading OSGi.fx Remote Agent...", IProgressMonitor.UNKNOWN);
+                    resultHolder[0] = downloader.download(targetDir, monitor);
+                } catch (final Exception ex) {
+                    throw new InvocationTargetException(ex);
+                } finally {
+                    monitor.done();
+                }
+            });
+            MessageDialog.openInformation(getShell(), "Agent Downloaded",
+                    "OSGi.fx Remote Agent downloaded successfully to:\n" + resultHolder[0].toAbsolutePath()
+                            + "\n\nDeploy this JAR into your target OSGi runtime.");
+        } catch (final InvocationTargetException ex) {
+            final var cause = ex.getCause();
+            final var msg   = cause != null ? cause.getMessage() : ex.getMessage();
+            Activator.log(IStatus.ERROR, "Failed to download OSGi.fx Remote Agent: " + msg, cause != null ? cause : ex);
+            MessageDialog.openError(getShell(), "Download Failed",
+                    "Failed to download the OSGi.fx Remote Agent:\n" + msg);
+        } catch (final InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void createProfileListSection(final Composite parent) {
@@ -906,17 +986,17 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
                     return Status.OK_STATUS;
                 } catch (final Exception e) {
+                    Activator.log(IStatus.ERROR,
+                            "Failed to launch OSGi.fx for profile '" + profileToConnect.name + "': " + e.getMessage(),
+                            e);
                     Display.getDefault().asyncExec(() -> {
                         profileToConnect.lastStatus = "FAILURE";
                         profileStore.update(profileToConnect);
 
                         if (getShell() != null && !getShell().isDisposed()) {
-                            final Path logFile = OsgifxProcessLauncher.getLogFile(profileToConnect.id);
-                            String     msg     = "Failed to launch OSGi.fx. " + e.getMessage();
-                            if (logFile != null && Files.exists(logFile)) {
-                                msg += "\n\nLog file created at: " + logFile.toAbsolutePath();
-                            }
-                            MessageDialog.openError(getShell(), "Connection Error", msg);
+                            final Path   logFile = OsgifxProcessLauncher.getLogFile(profileToConnect.id);
+                            final String logTail = readLogTail(logFile, 20);
+                            new LaunchErrorDialog(getShell(), e.getMessage(), logFile, logTail).open();
                         }
                     });
                     return Status.CANCEL_STATUS;
@@ -1419,5 +1499,80 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     @Override
     protected boolean isResizable() {
         return true;
+    }
+
+    private String readLogTail(final Path logFile, final int lines) {
+        if (logFile == null || !Files.exists(logFile)) {
+            return "(no log file available)";
+        }
+        try {
+            final var all  = Files.readAllLines(logFile);
+            final int from = Math.max(0, all.size() - lines);
+            return String.join(System.lineSeparator(), all.subList(from, all.size()));
+        } catch (final java.io.IOException e) {
+            return "(could not read log: " + e.getMessage() + ")";
+        }
+    }
+
+    private final class LaunchErrorDialog extends Dialog {
+
+        private final String errorMessage;
+        private final Path   logFile;
+        private final String logTail;
+
+        LaunchErrorDialog(final Shell parentShell,
+                          final String errorMessage,
+                          final Path logFile,
+                          final String logTail) {
+            super(parentShell);
+            this.errorMessage = errorMessage;
+            this.logFile      = logFile;
+            this.logTail      = logTail;
+            setShellStyle(getShellStyle() | SWT.RESIZE);
+        }
+
+        @Override
+        protected void configureShell(final Shell shell) {
+            super.configureShell(shell);
+            shell.setText("OSGi.fx Launch Error");
+            shell.setSize(600, 450);
+        }
+
+        @Override
+        protected Control createDialogArea(final Composite parent) {
+            final Composite container = (Composite) super.createDialogArea(parent);
+            container.setLayout(GridLayoutFactory.fillDefaults().margins(12, 12).spacing(0, 8).create());
+
+            final var errorLabel = new Label(container, SWT.WRAP);
+            errorLabel.setText("Failed to launch OSGi.fx:\n" + errorMessage);
+            errorLabel.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).hint(560, SWT.DEFAULT).create());
+
+            final var logHeader = new Label(container, SWT.NONE);
+            logHeader.setText("Last log output:");
+            logHeader.setLayoutData(GridDataFactory.fillDefaults().grab(true, false).create());
+
+            final var logText = new Text(container,
+                                         SWT.BORDER | SWT.MULTI | SWT.READ_ONLY | SWT.V_SCROLL | SWT.H_SCROLL);
+            logText.setText(logTail.isEmpty() ? "(no output captured)" : logTail);
+            logText.setLayoutData(GridDataFactory.fillDefaults().grab(true, true).hint(SWT.DEFAULT, 200).create());
+
+            return container;
+        }
+
+        @Override
+        protected void createButtonsForButtonBar(final Composite parent) {
+            if (logFile != null && Files.exists(logFile)) {
+                final var openLogBtn = createButton(parent, IDialogConstants.DETAILS_ID, "Open Log File", false);
+                openLogBtn.addListener(SWT.Selection, e -> Program.launch(logFile.toAbsolutePath().toString()));
+            }
+            createButton(parent, IDialogConstants.OK_ID, IDialogConstants.OK_LABEL, true);
+        }
+
+        @Override
+        protected void buttonPressed(final int buttonId) {
+            if (buttonId != IDialogConstants.DETAILS_ID) {
+                super.buttonPressed(buttonId);
+            }
+        }
     }
 }

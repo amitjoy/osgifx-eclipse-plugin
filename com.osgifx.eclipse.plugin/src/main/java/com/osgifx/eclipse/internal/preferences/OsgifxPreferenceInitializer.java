@@ -15,7 +15,9 @@
  ******************************************************************************/
 package com.osgifx.eclipse.internal.preferences;
 
+import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.AGENT_BANNER_DISMISSED;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.AUTO_MANAGE_RUNTIME;
+import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.DEFAULT_AGENT_BANNER_DISMISSED;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.DEFAULT_AUTO_MANAGE;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.DEFAULT_GAV;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.DEFAULT_USE_LOCAL;
@@ -36,6 +38,7 @@ public final class OsgifxPreferenceInitializer extends AbstractPreferenceInitial
         node.putBoolean(AUTO_MANAGE_RUNTIME, DEFAULT_AUTO_MANAGE);
         node.putBoolean(USE_LOCAL_JAR, DEFAULT_USE_LOCAL);
         node.put(OSGIFX_GAV, DEFAULT_GAV);
+        node.putBoolean(AGENT_BANNER_DISMISSED, DEFAULT_AGENT_BANNER_DISMISSED);
     }
 
 }

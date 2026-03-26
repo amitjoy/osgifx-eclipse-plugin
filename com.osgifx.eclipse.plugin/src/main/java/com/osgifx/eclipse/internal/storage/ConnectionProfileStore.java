@@ -25,9 +25,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.eclipse.core.runtime.IStatus;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import com.osgifx.eclipse.internal.Activator;
 
 public final class ConnectionProfileStore {
 
@@ -48,6 +51,7 @@ public final class ConnectionProfileStore {
             final var profiles = gson.<List<ConnectionProfile>> fromJson(reader, LIST_TYPE);
             return profiles != null ? profiles : new ArrayList<>();
         } catch (final IOException e) {
+            Activator.log(IStatus.ERROR, "Failed to load connection profiles from: " + storeFile.getAbsolutePath(), e);
             return new ArrayList<>();
         }
     }
@@ -57,6 +61,7 @@ public final class ConnectionProfileStore {
         try (final var writer = new FileWriter(storeFile)) {
             gson.toJson(profiles, writer);
         } catch (final IOException e) {
+            Activator.log(IStatus.ERROR, "Failed to save connection profiles to: " + storeFile.getAbsolutePath(), e);
             throw new RuntimeException("Failed to save connection profiles", e);
         }
     }

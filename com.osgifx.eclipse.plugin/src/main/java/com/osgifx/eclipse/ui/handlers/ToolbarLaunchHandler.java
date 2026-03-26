@@ -18,12 +18,14 @@ package com.osgifx.eclipse.ui.handlers;
 import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.handlers.HandlerUtil;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 
+import com.osgifx.eclipse.internal.Activator;
 import com.osgifx.eclipse.ui.dialogs.ConnectionManagerDialog;
 
 public final class ToolbarLaunchHandler extends AbstractHandler {
@@ -41,6 +43,7 @@ public final class ToolbarLaunchHandler extends AbstractHandler {
             final ConnectionManagerDialog dialog = new ConnectionManagerDialog(shell);
             dialog.open();
         } catch (final Exception e) {
+            Activator.log(IStatus.ERROR, "Failed to open OSGi.fx Connection Manager dialog", e);
             final Shell shell = HandlerUtil.getActiveShell(event);
             MessageDialog.openError(shell, "OSGi.fx Error", "Failed to open dialog: " + e.getMessage());
             throw new ExecutionException("Failed to open OSGi.fx dialog", e);

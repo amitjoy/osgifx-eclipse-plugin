@@ -16,6 +16,8 @@
 package com.osgifx.eclipse.internal.launcher;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -83,7 +85,9 @@ public final class OsgifxProcessLauncher extends Job {
             }
 
             final var cmd = buildCommand();
-            final var pb  = new ProcessBuilder(cmd);
+            Activator.log(IStatus.INFO, "Launching OSGi.fx with command: " + String.join(" ", cmd), null);
+
+            final var pb = new ProcessBuilder(cmd);
 
             pb.directory(scriptPath.getParent().toFile());
             pb.redirectErrorStream(true);
@@ -95,6 +99,7 @@ public final class OsgifxProcessLauncher extends Job {
             pb.redirectOutput(ProcessBuilder.Redirect.to(logFile.toFile()));
 
             activeLogs.put(profile.id, logFile);
+            Activator.log(IStatus.INFO, "OSGi.fx process output will be redirected to: " + logFile, null);
 
             monitor.worked(20);
             monitor.subTask("Starting process...");
@@ -103,6 +108,7 @@ public final class OsgifxProcessLauncher extends Job {
             final var pid     = process.pid();
 
             activeProcesses.put(profile.id, pid);
+            Activator.log(IStatus.INFO, "OSGi.fx process started with PID: " + pid, null);
 
             monitor.worked(30);
             monitor.subTask("Verifying startup...");
@@ -116,18 +122,32 @@ public final class OsgifxProcessLauncher extends Job {
                 Thread.sleep(500);
                 if (!process.isAlive()) {
                     final var exitCode = process.exitValue();
-                    return new Status(IStatus.ERROR, Activator.PLUGIN_ID,
-                                      "OSGi.fx process terminated unexpectedly with exit code " + exitCode
-                                              + ". Check logs for details: " + logFile);
+                    final var logTail  = readTailOfLog(logFile, 20);
+                    final var message  = "OSGi.fx process (PID: " + pid + ") terminated unexpectedly with exit code "
+                            + exitCode + ". Log file: " + logFile + "\n\n--- Last log output ---\n" + logTail;
+                    Activator.log(IStatus.ERROR, message, null);
+                    return new Status(IStatus.ERROR, Activator.PLUGIN_ID, message);
                 }
                 monitor.worked(5);
             }
 
+            Activator.log(IStatus.INFO, "OSGi.fx process (PID: " + pid + ") is running normally.", null);
             return Status.OK_STATUS;
         } catch (final Exception e) {
+            Activator.log(IStatus.ERROR, "Failed to launch OSGi.fx: " + e.getMessage(), e);
             return new Status(IStatus.ERROR, Activator.PLUGIN_ID, "Failed to launch OSGi.fx: " + e.getMessage(), e);
         } finally {
             monitor.done();
+        }
+    }
+
+    private String readTailOfLog(final Path logFile, final int lines) {
+        try {
+            final var all  = Files.readAllLines(logFile);
+            final int from = Math.max(0, all.size() - lines);
+            return String.join(System.lineSeparator(), all.subList(from, all.size()));
+        } catch (final IOException e) {
+            return "(could not read log: " + e.getMessage() + ")";
         }
     }
 

@@ -23,8 +23,11 @@ public interface OsgifxPreferenceConstants {
     String OSGIFX_LOCAL_JAR    = "osgifxLocalJar";
     String USE_LOCAL_JAR       = "useLocalJar";
 
+    String AGENT_BANNER_DISMISSED = "agentBannerDismissed";
+
     // Defaults
-    boolean DEFAULT_AUTO_MANAGE = true;
-    boolean DEFAULT_USE_LOCAL   = false;
-    String  DEFAULT_GAV         = "com.osgifx:osgifx:latest";
+    boolean DEFAULT_AUTO_MANAGE            = true;
+    boolean DEFAULT_USE_LOCAL              = false;
+    String  DEFAULT_GAV                    = "com.osgifx:osgifx:latest";
+    boolean DEFAULT_AGENT_BANNER_DISMISSED = false;
 }
