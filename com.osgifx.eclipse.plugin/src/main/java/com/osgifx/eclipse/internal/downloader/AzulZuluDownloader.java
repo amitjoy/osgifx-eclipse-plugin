@@ -15,6 +15,28 @@
  ******************************************************************************/
 package com.osgifx.eclipse.internal.downloader;
 
+import static com.osgifx.eclipse.internal.util.Constants.ARCHIVE_TYPE_ZIP;
+import static com.osgifx.eclipse.internal.util.Constants.ARCH_ARM;
+import static com.osgifx.eclipse.internal.util.Constants.ARCH_X86;
+import static com.osgifx.eclipse.internal.util.Constants.ARCH_X86_64;
+import static com.osgifx.eclipse.internal.util.Constants.AZUL_API_URL;
+import static com.osgifx.eclipse.internal.util.Constants.BIN_DIR;
+import static com.osgifx.eclipse.internal.util.Constants.BUFFER_SIZE;
+import static com.osgifx.eclipse.internal.util.Constants.JAVAFX_CONTROLS_MODULE;
+import static com.osgifx.eclipse.internal.util.Constants.JAVA_EXE_UNIX;
+import static com.osgifx.eclipse.internal.util.Constants.JAVA_EXE_WINDOWS;
+import static com.osgifx.eclipse.internal.util.Constants.JAVA_PACKAGE_TYPE;
+import static com.osgifx.eclipse.internal.util.Constants.JAVA_VERSION;
+import static com.osgifx.eclipse.internal.util.Constants.JDK_COMPILER_MODULE;
+import static com.osgifx.eclipse.internal.util.Constants.JVM_ARG_LIST_MODULES;
+import static com.osgifx.eclipse.internal.util.Constants.JVM_ARG_MAC_FORK;
+import static com.osgifx.eclipse.internal.util.Constants.OS_LINUX;
+import static com.osgifx.eclipse.internal.util.Constants.OS_MACOS;
+import static com.osgifx.eclipse.internal.util.Constants.OS_WINDOWS;
+import static com.osgifx.eclipse.internal.util.Constants.TEMP_FILE_PREFIX;
+import static com.osgifx.eclipse.internal.util.Constants.TEMP_FILE_SUFFIX;
+import static com.osgifx.eclipse.internal.util.Constants.ZULU_ARCHIVE_DIR;
+
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -41,38 +63,52 @@ import com.osgifx.eclipse.internal.util.OsgifxWorkspaceUtil;
 
 public final class AzulZuluDownloader extends Job {
 
-    private static final String API_URL     = "https://api.azul.com/metadata/v1/zulu/packages";
-    private static final String VERSION     = "25";
-    private static final String ARCHIVE_DIR = "zulu-fx-25";
-
     private static final Object DOWNLOAD_LOCK = new Object();
 
     private final Gson gson = new Gson();
 
+    /**
+     * Creates a new Azul Zulu FX 25 downloader job.
+     */
     public AzulZuluDownloader() {
         super("Downloading Azul Zulu FX 25 Runtime");
     }
 
+    /**
+     * Returns the path where the Azul Zulu FX 25 runtime is stored.
+     *
+     * @return the runtime directory path
+     */
     public Path getRuntimePath() {
         final var stateLocation = OsgifxWorkspaceUtil.getStateLocation();
-        return stateLocation.toPath().resolve(ARCHIVE_DIR);
+        return stateLocation.toPath().resolve(ZULU_ARCHIVE_DIR);
     }
 
+    /**
+     * Locates the Java executable within the downloaded runtime.
+     *
+     * @return the path to the java executable, or {@code null} if not found
+     */
     public Path getJavaExecutablePath() {
         final var runtimePath = getRuntimePath();
         if (!Files.exists(runtimePath)) {
             return null;
         }
-        final var javaExe = OSUtils.IS_OS_WINDOWS ? "java.exe" : "java";
+        final var javaExe = OSUtils.IS_OS_WINDOWS ? JAVA_EXE_WINDOWS : JAVA_EXE_UNIX;
 
-        try (final var stream = Files.walk(runtimePath)) {
+        try (final var stream = Files.walk(runtimePath, 7)) {
             return stream.filter(Files::isRegularFile).filter(path -> path.getFileName().toString().equals(javaExe))
-                    .filter(path -> path.getParent().getFileName().toString().equals("bin")).findFirst().orElse(null);
+                    .filter(path -> path.getParent().getFileName().toString().equals(BIN_DIR)).findFirst().orElse(null);
         } catch (final IOException e) {
             return null;
         }
     }
 
+    /**
+     * Checks if the Azul Zulu FX 25 runtime is available and ready to use.
+     *
+     * @return {@code true} if the runtime is available, {@code false} otherwise
+     */
     public boolean isRuntimeAvailable() {
         final var path = getJavaExecutablePath();
         return path != null && Files.exists(path);
@@ -127,8 +163,9 @@ public final class AzulZuluDownloader extends Job {
     private String fetchDownloadUrl() throws IOException {
         final var os   = detectOs();
         final var arch = detectArch();
-        final var url  = new URL(API_URL + "?java_version=" + VERSION + "&os=" + os + "&arch=" + arch
-                + "&archive_type=zip&java_package_type=jdk&javafx_bundled=true&latest=true");
+        final var url  = new URL(AZUL_API_URL + "?java_version=" + JAVA_VERSION + "&os=" + os + "&arch=" + arch
+                + "&archive_type=" + ARCHIVE_TYPE_ZIP + "&java_package_type=" + JAVA_PACKAGE_TYPE
+                + "&javafx_bundled=true&latest=true");
 
         try (final var is = url.openStream()) {
             final var response = new String(is.readAllBytes());
@@ -146,35 +183,35 @@ public final class AzulZuluDownloader extends Job {
 
     private String detectOs() {
         if (OSUtils.IS_OS_WINDOWS) {
-            return "windows";
+            return OS_WINDOWS;
         } else if (OSUtils.IS_OS_MAC) {
-            return "macos";
+            return OS_MACOS;
         } else {
-            return "linux";
+            return OS_LINUX;
         }
     }
 
     private String detectArch() {
         final var arch = OSUtils.OS_ARCH.toLowerCase();
         if (arch.contains("aarch64") || arch.contains("arm")) {
-            return "arm";
+            return ARCH_ARM;
         }
         if (arch.contains("64")) {
-            return "x86_64"; // Safer mapping for Azul API
+            return ARCH_X86_64;
         }
-        return "x86";
+        return ARCH_X86;
     }
 
     private File downloadArchive(final String url, final IProgressMonitor monitor) throws IOException {
         final var connection    = new URL(url).openConnection();
         final var contentLength = connection.getContentLengthLong();
 
-        final var tempFile = Files.createTempFile("zulu-fx-25", ".zip").toFile();
+        final var tempFile = Files.createTempFile(TEMP_FILE_PREFIX, TEMP_FILE_SUFFIX).toFile();
 
         try (final var is = new BufferedInputStream(connection.getInputStream());
                 final var os = new FileOutputStream(tempFile)) {
 
-            final var buffer    = new byte[8192];
+            final var buffer    = new byte[BUFFER_SIZE];
             var       totalRead = 0L;
             var       bytesRead = 0;
 
@@ -213,14 +250,17 @@ public final class AzulZuluDownloader extends Job {
                     targetFile.getParentFile().mkdirs();
 
                     // Prevent Zip Slip Vulnerability
-                    if (!targetFile.getCanonicalPath().startsWith(targetDir.getCanonicalPath() + File.separator)) {
-                        throw new IOException("Zip entry is outside of the target dir: " + entryPath);
+                    final var canonicalTarget = targetDir.getCanonicalPath();
+                    final var canonicalFile   = targetFile.getCanonicalPath();
+                    if (!canonicalFile.startsWith(canonicalTarget + File.separator)) {
+                        throw new ZipSlipException(entryPath, canonicalTarget, canonicalFile);
                     }
 
                     Files.copy(zis, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
                     // Set executable permission on Unix-like systems for bin binaries
-                    if (!OSUtils.IS_OS_WINDOWS && (entryPath.contains("/bin/") || entryPath.startsWith("bin/"))) {
+                    if (!OSUtils.IS_OS_WINDOWS
+                            && (entryPath.contains("/" + BIN_DIR + "/") || entryPath.startsWith(BIN_DIR + "/"))) {
                         targetFile.setExecutable(true);
                     }
                 }
@@ -237,9 +277,9 @@ public final class AzulZuluDownloader extends Job {
         final var cmd = new ArrayList<String>();
         cmd.add(javaExe.toString());
         if (OSUtils.IS_OS_MAC) {
-            cmd.add("-Djdk.lang.Process.launchMechanism=FORK");
+            cmd.add(JVM_ARG_MAC_FORK);
         }
-        cmd.add("--list-modules");
+        cmd.add(JVM_ARG_LIST_MODULES);
 
         final var pb = new ProcessBuilder(cmd);
         pb.redirectErrorStream(true);
@@ -248,10 +288,10 @@ public final class AzulZuluDownloader extends Job {
         try (final var is = process.getInputStream()) {
             final var output = new String(is.readAllBytes());
             process.waitFor();
-            if (!output.contains("javafx.controls")) {
+            if (!output.contains(JAVAFX_CONTROLS_MODULE)) {
                 throw new Exception("Downloaded runtime does not contain JavaFX modules");
             }
-            if (!output.contains("jdk.compiler")) {
+            if (!output.contains(JDK_COMPILER_MODULE)) {
                 throw new Exception("Downloaded runtime does not contain the Java compiler (jdk.compiler) required to launch the script");
             }
         }

@@ -15,6 +15,21 @@
  ******************************************************************************/
 package com.osgifx.eclipse.internal.launcher;
 
+import static com.osgifx.eclipse.internal.util.Constants.ARG_CONFIG;
+import static com.osgifx.eclipse.internal.util.Constants.ARG_GAV;
+import static com.osgifx.eclipse.internal.util.Constants.ARG_JAR;
+import static com.osgifx.eclipse.internal.util.Constants.JAVA_VERSION;
+import static com.osgifx.eclipse.internal.util.Constants.JVM_ARG_MAC_FORK;
+import static com.osgifx.eclipse.internal.util.Constants.JVM_ARG_SOURCE;
+import static com.osgifx.eclipse.internal.util.Constants.JVM_ARG_TRUSTSTORE;
+import static com.osgifx.eclipse.internal.util.Constants.JVM_ARG_TRUSTSTORE_PASSWORD;
+import static com.osgifx.eclipse.internal.util.Constants.LOG_FILE_FORMAT;
+import static com.osgifx.eclipse.internal.util.Constants.LOG_TAIL_LINES;
+import static com.osgifx.eclipse.internal.util.Constants.STARTUP_CHECK_INTERVAL_MS;
+import static com.osgifx.eclipse.internal.util.Constants.STARTUP_CHECK_ITERATIONS;
+import static com.osgifx.eclipse.internal.util.Constants.SYSPROP_TRUSTSTORE;
+import static com.osgifx.eclipse.internal.util.Constants.SYSPROP_TRUSTSTORE_PASSWORD;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -94,7 +109,7 @@ public final class OsgifxProcessLauncher extends Job {
 
             // Create log file
             final var logDir  = OsgifxWorkspaceUtil.getLogsLocation();
-            final var logName = String.format("osgifx-%s.log", profile.id);
+            final var logName = String.format(LOG_FILE_FORMAT, profile.id);
             logFile = new File(logDir, logName).toPath();
             pb.redirectOutput(ProcessBuilder.Redirect.to(logFile.toFile()));
 
@@ -114,15 +129,15 @@ public final class OsgifxProcessLauncher extends Job {
             monitor.subTask("Verifying startup...");
 
             // Wait a bit to see if it crashes immediately
-            for (var i = 0; i < 10; i++) {
+            for (var i = 0; i < STARTUP_CHECK_ITERATIONS; i++) {
                 if (monitor.isCanceled()) {
                     process.destroy();
                     return Status.CANCEL_STATUS;
                 }
-                Thread.sleep(500);
+                Thread.sleep(STARTUP_CHECK_INTERVAL_MS);
                 if (!process.isAlive()) {
                     final var exitCode = process.exitValue();
-                    final var logTail  = readTailOfLog(logFile, 20);
+                    final var logTail  = readTailOfLog(logFile, LOG_TAIL_LINES);
                     final var message  = "OSGi.fx process (PID: " + pid + ") terminated unexpectedly with exit code "
                             + exitCode + ". Log file: " + logFile + "\n\n--- Last log output ---\n" + logTail;
                     Activator.log(IStatus.ERROR, message, null);
@@ -155,40 +170,57 @@ public final class OsgifxProcessLauncher extends Job {
         final var cmd = new ArrayList<String>();
         cmd.add(javaExePath.toString());
         if (OSUtils.IS_OS_MAC) {
-            cmd.add("-Djdk.lang.Process.launchMechanism=FORK");
+            cmd.add(JVM_ARG_MAC_FORK);
         }
 
-        final var trustStore = System.getProperty("javax.net.ssl.trustStore");
+        final var trustStore = System.getProperty(SYSPROP_TRUSTSTORE);
         if (trustStore != null) {
-            cmd.add("-Djavax.net.ssl.trustStore=" + trustStore);
+            cmd.add(JVM_ARG_TRUSTSTORE + trustStore);
         }
-        final var trustStorePassword = System.getProperty("javax.net.ssl.trustStorePassword");
+        final var trustStorePassword = System.getProperty(SYSPROP_TRUSTSTORE_PASSWORD);
         if (trustStorePassword != null) {
-            cmd.add("-Djavax.net.ssl.trustStorePassword=" + trustStorePassword);
+            cmd.add(JVM_ARG_TRUSTSTORE_PASSWORD + trustStorePassword);
         }
 
-        cmd.add("--source");
-        cmd.add("25");
+        cmd.add(JVM_ARG_SOURCE);
+        cmd.add(JAVA_VERSION);
         cmd.add(scriptPath.toString());
         if (localJar != null && !localJar.isBlank()) {
-            cmd.add("--jar");
+            cmd.add(ARG_JAR);
             cmd.add(localJar);
         } else {
-            cmd.add("--gav");
+            cmd.add(ARG_GAV);
             cmd.add(gav);
         }
-        cmd.add("-Dosgifx.config=" + configPath);
+        cmd.add(ARG_CONFIG + configPath);
         return cmd;
     }
 
+    /**
+     * Returns the process ID for the given connection profile.
+     *
+     * @param profileId the connection profile ID
+     * @return the process ID, or {@code null} if no process is running for this profile
+     */
     public static Long getProcessId(final String profileId) {
         return activeProcesses.get(profileId);
     }
 
+    /**
+     * Returns the log file path for the given connection profile.
+     *
+     * @param profileId the connection profile ID
+     * @return the log file path, or {@code null} if no log exists for this profile
+     */
     public static Path getLogFile(final String profileId) {
         return activeLogs.get(profileId);
     }
 
+    /**
+     * Terminates the OSGi.fx process for the given connection profile.
+     *
+     * @param profileId the connection profile ID
+     */
     public static void terminateProcess(final String profileId) {
         final var pid = activeProcesses.get(profileId);
         if (pid != null) {

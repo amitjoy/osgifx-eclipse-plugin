@@ -15,6 +15,16 @@
  ******************************************************************************/
 package com.osgifx.eclipse.internal.downloader;
 
+import static com.osgifx.eclipse.internal.util.Constants.AGENT_ARTIFACT_ID;
+import static com.osgifx.eclipse.internal.util.Constants.AGENT_GROUP_ID;
+import static com.osgifx.eclipse.internal.util.Constants.HTTP_CONNECT_TIMEOUT_S;
+import static com.osgifx.eclipse.internal.util.Constants.HTTP_INTERNAL_ERROR;
+import static com.osgifx.eclipse.internal.util.Constants.HTTP_INTERNAL_ERROR_UC;
+import static com.osgifx.eclipse.internal.util.Constants.HTTP_OK;
+import static com.osgifx.eclipse.internal.util.Constants.MAVEN_CENTRAL_URL;
+import static com.osgifx.eclipse.internal.util.Constants.XML_TAG_LATEST;
+import static com.osgifx.eclipse.internal.util.Constants.XML_TAG_RELEASE;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -51,9 +61,8 @@ import com.osgifx.eclipse.internal.Activator;
  */
 public final class AgentDownloader {
 
-    private static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2/";
-    private static final String GROUP_ID      = "com.osgifx";
-    private static final String ARTIFACT_ID   = "com.osgifx.console.agent";
+    private static final Pattern RELEASE_PATTERN = Pattern.compile(XML_TAG_RELEASE);
+    private static final Pattern LATEST_PATTERN  = Pattern.compile(XML_TAG_LATEST);
 
     /**
      * Resolves the latest release version of the agent from Maven Central metadata.
@@ -63,17 +72,18 @@ public final class AgentDownloader {
      * @throws InterruptedException if the current thread is interrupted
      */
     public String resolveLatestVersion() throws IOException, InterruptedException {
-        final var metadataUrl = MAVEN_CENTRAL + GROUP_ID.replace('.', '/') + "/" + ARTIFACT_ID + "/maven-metadata.xml";
+        final var metadataUrl = MAVEN_CENTRAL_URL + AGENT_GROUP_ID.replace('.', '/') + "/" + AGENT_ARTIFACT_ID
+                + "/maven-metadata.xml";
         Activator.log(IStatus.INFO, "Resolving latest agent version from: " + metadataUrl, null);
 
         final var xml     = fetchStringWithFallback(URI.create(metadataUrl));
-        Matcher   matcher = Pattern.compile("<release>(.*?)</release>").matcher(xml);
+        Matcher   matcher = RELEASE_PATTERN.matcher(xml);
         if (matcher.find()) {
             final var version = matcher.group(1);
             Activator.log(IStatus.INFO, "Latest agent version resolved: " + version, null);
             return version;
         }
-        matcher = Pattern.compile("<latest>(.*?)</latest>").matcher(xml);
+        matcher = LATEST_PATTERN.matcher(xml);
         if (matcher.find()) {
             final var version = matcher.group(1);
             Activator.log(IStatus.INFO, "Latest agent version resolved: " + version, null);
@@ -94,9 +104,10 @@ public final class AgentDownloader {
     public Path download(final Path targetDirectory,
                          final IProgressMonitor monitor) throws IOException, InterruptedException {
         final var version   = resolveLatestVersion();
-        final var jarName   = ARTIFACT_ID + "-" + version + ".jar";
-        final var groupPath = GROUP_ID.replace('.', '/');
-        final var uri       = URI.create(MAVEN_CENTRAL + groupPath + "/" + ARTIFACT_ID + "/" + version + "/" + jarName);
+        final var jarName   = AGENT_ARTIFACT_ID + "-" + version + ".jar";
+        final var groupPath = AGENT_GROUP_ID.replace('.', '/');
+        final var uri       = URI
+                .create(MAVEN_CENTRAL_URL + groupPath + "/" + AGENT_ARTIFACT_ID + "/" + version + "/" + jarName);
 
         Activator.log(IStatus.INFO, "Downloading agent JAR from: " + uri, null);
 
@@ -153,7 +164,7 @@ public final class AgentDownloader {
         final var client   = buildClient(version);
         final var request  = HttpRequest.newBuilder(uri).GET().build();
         final var response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() != 200) {
+        if (response.statusCode() != HTTP_OK) {
             throw new IOException("Unexpected HTTP " + response.statusCode() + " from " + uri);
         }
         return response.body();
@@ -164,7 +175,7 @@ public final class AgentDownloader {
         final var client   = buildClient(version);
         final var request  = HttpRequest.newBuilder(uri).GET().build();
         final var response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
-        if (response.statusCode() != 200) {
+        if (response.statusCode() != HTTP_OK) {
             throw new IOException("Unexpected HTTP " + response.statusCode() + " from " + uri);
         }
         return response.body();
@@ -172,7 +183,7 @@ public final class AgentDownloader {
 
     private HttpClient buildClient(final HttpClient.Version version) {
         return HttpClient.newBuilder().version(version).followRedirects(HttpClient.Redirect.NORMAL)
-                .connectTimeout(Duration.ofSeconds(10)).build();
+                .connectTimeout(Duration.ofSeconds(HTTP_CONNECT_TIMEOUT_S)).build();
     }
 
     /**
@@ -184,7 +195,7 @@ public final class AgentDownloader {
         Throwable cause = e;
         while (cause != null) {
             final var msg = cause.getMessage();
-            if (msg != null && (msg.contains("internal_error") || msg.contains("INTERNAL_ERROR"))) {
+            if (msg != null && (msg.contains(HTTP_INTERNAL_ERROR) || msg.contains(HTTP_INTERNAL_ERROR_UC))) {
                 return true;
             }
             cause = cause.getCause();

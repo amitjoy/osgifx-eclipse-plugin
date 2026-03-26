@@ -15,6 +15,9 @@
  ******************************************************************************/
 package com.osgifx.eclipse.internal.downloader;
 
+import static com.osgifx.eclipse.internal.util.Constants.SCRIPT_FILENAME;
+import static com.osgifx.eclipse.internal.util.Constants.SCRIPT_URL;
+
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.net.URL;
@@ -30,20 +33,33 @@ import com.osgifx.eclipse.internal.util.OsgifxWorkspaceUtil;
 
 public final class RunOsgiFxDownloader {
 
-    private static final String SCRIPT_URL      = "https://raw.githubusercontent.com/amitjoy/osgifx/main/scripts/RunOSGiFx";
-    private static final String SCRIPT_FILENAME = "RunOSGiFx";
-
     private static final Object DOWNLOAD_LOCK = new Object();
 
+    /**
+     * Returns the path where the RunOSGiFx script is stored.
+     *
+     * @return the script file path
+     */
     public Path getScriptPath() {
         final var stateLocation = OsgifxWorkspaceUtil.getStateLocation();
         return stateLocation.toPath().resolve(SCRIPT_FILENAME);
     }
 
+    /**
+     * Checks if the RunOSGiFx script has been downloaded.
+     *
+     * @return {@code true} if the script exists, {@code false} otherwise
+     */
     public boolean isScriptAvailable() {
         return Files.exists(getScriptPath());
     }
 
+    /**
+     * Downloads the RunOSGiFx script from the remote repository.
+     * If the script is already cached, this method returns immediately.
+     *
+     * @throws IOException if the download fails
+     */
     public void download() throws IOException {
         synchronized (DOWNLOAD_LOCK) {
             if (isScriptAvailable()) {

@@ -20,6 +20,7 @@ import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.OSGIFX_GAV;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.OSGIFX_LOCAL_JAR;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.USE_LOCAL_JAR;
+import static com.osgifx.eclipse.internal.util.Constants.ZULU_ARCHIVE_DIR;
 
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
@@ -37,6 +38,7 @@ import org.eclipse.jface.preference.StringFieldEditor;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
@@ -75,6 +77,18 @@ public final class OsgifxPreferencePage extends FieldEditorPreferencePage implem
         customJavaEditor.setFileExtensions(new String[] { "*.exe", "*" });
         addField(customJavaEditor);
 
+        final var javaHintLabel = new Label(parent, SWT.WRAP);
+        javaHintLabel
+                .setText("Select the 'java' executable file (e.g., /path/to/jdk-25/bin/java or java.exe on Windows). "
+                        + "The JDK must include JavaFX.");
+        javaHintLabel.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
+        final var fontData = javaHintLabel.getFont().getFontData();
+        for (final var fd : fontData) {
+            fd.setHeight(fd.getHeight() - 1);
+        }
+        javaHintLabel.setFont(new Font(javaHintLabel.getDisplay(), fontData));
+        javaHintLabel.setForeground(javaHintLabel.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
+
         final var spacer = new Label(parent, SWT.NONE);
         spacer.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
 
@@ -111,10 +125,10 @@ public final class OsgifxPreferencePage extends FieldEditorPreferencePage implem
 
     private void clearCache() {
         final var stateLocation = OsgifxWorkspaceUtil.getStateLocation();
-        final var cacheDir      = new File(stateLocation, "zulu-fx-25");
+        final var cacheDir      = new File(stateLocation, ZULU_ARCHIVE_DIR);
 
         if (cacheDir.exists()) {
-            deleteDirectory(cacheDir);
+            OsgifxWorkspaceUtil.deleteDirectory(cacheDir);
             Activator.log(IStatus.INFO, "Azul Zulu FX 25 runtime cache cleared from: " + cacheDir.getAbsolutePath(),
                     null);
             MessageDialog.openInformation(getShell(), "Cache Cleared",
@@ -123,20 +137,6 @@ public final class OsgifxPreferencePage extends FieldEditorPreferencePage implem
         } else {
             MessageDialog.openInformation(getShell(), "No Cache Found", "No downloaded runtime cache exists.");
         }
-    }
-
-    private void deleteDirectory(final File directory) {
-        final var files = directory.listFiles();
-        if (files != null) {
-            for (final var file : files) {
-                if (file.isDirectory()) {
-                    deleteDirectory(file);
-                } else {
-                    file.delete();
-                }
-            }
-        }
-        directory.delete();
     }
 
     private void addAgentSection(final Composite parent) {

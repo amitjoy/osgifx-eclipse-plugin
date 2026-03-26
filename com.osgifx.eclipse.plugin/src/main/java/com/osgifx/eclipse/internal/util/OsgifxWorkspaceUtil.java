@@ -15,6 +15,8 @@
  ******************************************************************************/
 package com.osgifx.eclipse.internal.util;
 
+import static com.osgifx.eclipse.internal.util.Constants.LOGS_DIR;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -38,6 +40,12 @@ public final class OsgifxWorkspaceUtil {
         throw new IllegalAccessError("Cannot be instantiated");
     }
 
+    /**
+     * Recursively deletes a directory and all its contents.
+     *
+     * @param directory the directory to delete
+     * @throws IOException if deletion fails
+     */
     public static void deleteDirectory(final Path directory) throws IOException {
         if (!Files.exists(directory)) {
             return;
@@ -47,14 +55,48 @@ public final class OsgifxWorkspaceUtil {
         }
     }
 
+    /**
+     * Recursively deletes a directory and all its contents.
+     *
+     * @param directory the directory to delete
+     */
+    public static void deleteDirectory(final File directory) {
+        if (directory == null || !directory.exists()) {
+            return;
+        }
+        final var files = directory.listFiles();
+        if (files != null) {
+            for (final var file : files) {
+                if (file.isDirectory()) {
+                    deleteDirectory(file);
+                } else {
+                    file.delete();
+                }
+            }
+        }
+        directory.delete();
+    }
+
+    /**
+     * Returns the directory where OSGi.fx logs are stored.
+     * Creates the directory if it doesn't exist.
+     *
+     * @return the logs directory
+     */
     public static File getLogsLocation() {
-        final File logs = new File(getStateLocation(), "logs");
+        final File logs = new File(getStateLocation(), LOGS_DIR);
         if (!logs.exists()) {
             logs.mkdirs();
         }
         return logs;
     }
 
+    /**
+     * Returns the plugin's state location directory.
+     * Falls back to user home directory if OSGi platform is unavailable.
+     *
+     * @return the state location directory
+     */
     public static File getStateLocation() {
         final Bundle bundle = FrameworkUtil.getBundle(OsgifxWorkspaceUtil.class);
         if (bundle != null) {
@@ -68,6 +110,11 @@ public final class OsgifxWorkspaceUtil {
         return new File(userHome, ".osgifx-eclipse");
     }
 
+    /**
+     * Returns the preference store for this plugin.
+     *
+     * @return the preference store
+     */
     public static IPreferenceStore getPreferenceStore() {
         return new ScopedPreferenceStore(InstanceScope.INSTANCE, PLUGIN_ID);
     }

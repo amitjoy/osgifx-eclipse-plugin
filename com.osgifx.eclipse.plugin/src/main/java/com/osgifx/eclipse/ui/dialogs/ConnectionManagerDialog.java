@@ -19,6 +19,10 @@ import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.OSGIFX_GAV;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.OSGIFX_LOCAL_JAR;
 import static com.osgifx.eclipse.internal.preferences.OsgifxPreferenceConstants.USE_LOCAL_JAR;
+import static com.osgifx.eclipse.internal.util.Constants.CONNECTIONS_FILE;
+import static com.osgifx.eclipse.internal.util.Constants.CONNECTION_TYPE_MQTT;
+import static com.osgifx.eclipse.internal.util.Constants.STATUS_FAILURE;
+import static com.osgifx.eclipse.internal.util.Constants.STATUS_SUCCESS;
 
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
@@ -107,6 +111,17 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
     private static final int MARGIN      = 15;
     private static final int SPACING     = 10;
     private static final int LABEL_WIDTH = 130;
+
+    // Color RGB values
+    private static final int SUCCESS_COLOR_R = 46;
+    private static final int SUCCESS_COLOR_G = 125;
+    private static final int SUCCESS_COLOR_B = 50;
+    private static final int ERROR_COLOR_R   = 198;
+    private static final int ERROR_COLOR_G   = 40;
+    private static final int ERROR_COLOR_B   = 40;
+    private static final int NEUTRAL_COLOR_R = 97;
+    private static final int NEUTRAL_COLOR_G = 97;
+    private static final int NEUTRAL_COLOR_B = 97;
 
     private static final Set<String> connectingProfiles = ConcurrentHashMap.newKeySet();
 
@@ -221,14 +236,14 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
 
     private void initializeColors() {
         final Display display = Display.getCurrent();
-        successColor = new Color(display, 46, 125, 50); // Green
-        errorColor   = new Color(display, 198, 40, 40); // Red
-        neutralColor = new Color(display, 97, 97, 97);  // Gray
+        successColor = new Color(display, SUCCESS_COLOR_R, SUCCESS_COLOR_G, SUCCESS_COLOR_B);
+        errorColor   = new Color(display, ERROR_COLOR_R, ERROR_COLOR_G, ERROR_COLOR_B);
+        neutralColor = new Color(display, NEUTRAL_COLOR_R, NEUTRAL_COLOR_G, NEUTRAL_COLOR_B);
     }
 
     private void initializeStores() {
         final File stateLocation = OsgifxWorkspaceUtil.getStateLocation();
-        final File storeFile     = new File(stateLocation, "connections.json");
+        final File storeFile     = new File(stateLocation, CONNECTIONS_FILE);
 
         profileStore = new ConnectionProfileStore(storeFile);
         configWriter = new VolatileConfigWriter(stateLocation);
@@ -1433,16 +1448,17 @@ public final class ConnectionManagerDialog extends TitleAreaDialog {
         public Image getImage(final Object element) {
             if (element instanceof ConnectionProfile) {
                 final ConnectionProfile profile    = (ConnectionProfile) element;
-                final ImageDescriptor   descriptor = "MQTT".equals(profile.type) ? mqttDescriptor : socketDescriptor;
+                final ImageDescriptor   descriptor = CONNECTION_TYPE_MQTT.equals(profile.type) ? mqttDescriptor
+                        : socketDescriptor;
                 return resourceManager.createImage(descriptor);
             }
             return super.getImage(element);
         }
 
         private String getStatusIcon(final String status) {
-            if ("SUCCESS".equals(status)) {
+            if (STATUS_SUCCESS.equals(status)) {
                 return "\u2713"; // Checkmark
-            } else if ("FAILURE".equals(status)) {
+            } else if (STATUS_FAILURE.equals(status)) {
                 return "\u2717"; // X mark
             }
             return "\u25CB"; // Empty circle
